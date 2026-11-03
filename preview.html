@@ -323,6 +323,25 @@
           <span class="text-[11px] font-mono text-zinc-500 uppercase tracking-wider block">Привязанный профиль</span>
           <span id="idle-username" class="text-lg font-bold text-white font-mono block">R_H_A</span>
         </div>
+        <!-- Предупреждение об ошибке NVIDIA оверлея (скрыто по умолчанию) -->
+        <div id="idle-nv-error-box" class="hidden p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-xs">
+          <div class="flex items-center gap-2 text-rose-400 font-bold">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span id="idle-nv-error-title">Оверлей NVIDIA не обнаружен</span>
+          </div>
+          <p id="idle-nv-error-msg" class="text-zinc-300 leading-relaxed text-[11px]">
+            Внутриигровой оверлей выключен или не установлен. Без него автоматическая фиксация убийств не работает.
+          </p>
+          <div class="pt-1.5 border-t border-rose-900/60 text-[11px] text-zinc-400 space-y-1">
+            <span class="font-bold text-zinc-300 block">Как включить:</span>
+            <div>1. <b>NVIDIA App:</b> <i>Настройки → Функции → Оверлей NVIDIA (Вкл)</i></div>
+            <div>2. <b>GeForce Experience:</b> <i>Настройки → Общие → Внутриигровой оверлей (Вкл)</i></div>
+          </div>
+          <button onclick="checkSystemsReal()" class="pt-1 text-xs text-rose-300 hover:text-rose-200 underline font-mono flex items-center gap-1 cursor-pointer">
+            <span>Проверить снова ↻</span>
+          </button>
+        </div>
+
         <!-- Предупреждение о конфликте ручной сессии (скрыто по умолчанию) -->
         <div id="idle-manual-conflict-box" class="hidden p-3.5 rounded-2xl bg-amber-950/40 border border-amber-800/60 space-y-2 text-xs">
           <div class="flex items-center gap-2 text-amber-400 font-bold">
@@ -419,7 +438,7 @@
           <span class="text-zinc-700 font-mono">/</span>
           <span class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-300">Настройки</span>
         </div>
-        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.9.0-beta</span></span>
+        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.9.1-beta</span></span>
       </div>
       <div class="flex-1 p-4 space-y-3 overflow-y-auto custom-scroll text-xs">
         <!-- Статус 1: NVIDIA -->
@@ -822,12 +841,23 @@
       const descBox = document.getElementById('idle-desc-box');
       const startBtn = document.getElementById('btn-start-session');
 
-      if (conflictBox && descBox) {
+      const nvErrorBox = document.getElementById('idle-nv-error-box');
+      if (conflictBox && descBox && nvErrorBox) {
         if (isManualConflict) {
           conflictBox.classList.remove('hidden');
+          nvErrorBox.classList.add('hidden');
           descBox.classList.add('hidden');
+        } else if (!nvOk) {
+          conflictBox.classList.add('hidden');
+          nvErrorBox.classList.remove('hidden');
+          descBox.classList.add('hidden');
+          const msgEl = document.getElementById('idle-nv-error-msg');
+          if (msgEl && nvidia.message) {
+            msgEl.innerText = `${nvidia.message}. Без активного оверлея фиксация убийств невозможна.`;
+          }
         } else {
           conflictBox.classList.add('hidden');
+          nvErrorBox.classList.add('hidden');
           descBox.classList.remove('hidden');
         }
       }
@@ -1065,22 +1095,33 @@ ${res.path}`);
           const descBox = document.getElementById('idle-desc-box');
           const startBtn = document.getElementById('btn-start-session');
 
-          if (conflictBox && descBox) {
+          const nvErrorBox = document.getElementById('idle-nv-error-box');
+          const nvOk = appState && appState.nvidia && appState.nvidia.status === 'ok';
+          const gameOk = appState && appState.game && appState.game.status === 'ok';
+          const profileOk = appState && appState.profile && appState.profile.status === 'ok';
+          const allReady = nvOk && gameOk && profileOk && !isManualConflict;
+
+          if (conflictBox && descBox && nvErrorBox) {
             if (isManualConflict) {
               conflictBox.classList.remove('hidden');
+              nvErrorBox.classList.add('hidden');
+              descBox.classList.add('hidden');
+            } else if (!nvOk) {
+              conflictBox.classList.add('hidden');
+              nvErrorBox.classList.remove('hidden');
               descBox.classList.add('hidden');
             } else {
               conflictBox.classList.add('hidden');
+              nvErrorBox.classList.add('hidden');
               descBox.classList.remove('hidden');
             }
           }
 
           if (startBtn && !isSessionActive) {
-            if (isManualConflict) {
-              startBtn.disabled = true;
+            startBtn.disabled = !allReady;
+            if (!allReady) {
               startBtn.classList.add('opacity-40', 'cursor-not-allowed');
             } else {
-              startBtn.disabled = false;
               startBtn.classList.remove('opacity-40', 'cursor-not-allowed');
             }
           }
@@ -1115,7 +1156,7 @@ ${res.path}`);
       } catch(e) {}
     }
     setInterval(syncSessionStatus, 3000);
-    window.addEventListener('focus', syncSessionStatus);
+    window.addEventListener('focus', () => { checkSystemsReal(); syncSessionStatus(); });
   </script>
 </body>
 </html>

@@ -5,7 +5,7 @@ import time
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.9.0-beta"
+APP_VERSION = "v0.9.1-beta"
 GITHUB_REPO = "RHA5/kd-connect"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
