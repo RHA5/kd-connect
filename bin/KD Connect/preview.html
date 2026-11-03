@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KD Connect — Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            zinc: {
+              850: '#1a1a1e',
+              900: '#111114',
+              950: '#09090b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #050507;
+      color: #e4e4e7;
+      user-select: none;
+    }
+    .pulse-glow {
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 4px;
+    }
+    .app-drag {
+      -webkit-app-region: drag;
+    }
+    .app-no-drag, button, input, a {
+      -webkit-app-region: no-drag;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-6 antialiased font-sans">
+
+  <!-- ДЕМО-ПЕРЕКЛЮЧАТЕЛЬ ДЛЯ ТЕСТИРОВАНИЯ -->
+  <div class="mb-5 flex flex-wrap items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 p-1.5 rounded-xl shadow-lg">
+    <span class="text-xs text-zinc-500 font-mono px-2">ДЕМО-СОСТОЯНИЯ:</span>
+    <button onclick="setMode('ready')" id="btn-ready" class="mode-btn px-3 py-1.5 rounded-lg text-xs font-medium transition bg-zinc-800 text-white border border-zinc-700">1. Системы готовы</button>
+    <button onclick="setMode('active')" id="btn-active" class="mode-btn px-3 py-1.5 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white hover:bg-zinc-800/50">2. Сессия активна</button>
+    <button onclick="setMode('error')" id="btn-error" class="mode-btn px-3 py-1.5 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white hover:bg-zinc-800/50">3. Ошибка пути</button>
+    <button onclick="toggleSettings(true)" class="px-3 py-1.5 rounded-lg text-xs font-medium transition text-zinc-300 hover:text-white bg-zinc-850 hover:bg-zinc-800 border border-zinc-750">⚙ Настройки</button>
+  </div>
+
+  <!-- ОКНО ПРИЛОЖЕНИЯ KD CONNECT (380 x 510 px) -->
+  <div class="w-[380px] h-[510px] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden relative">
+
+    <!-- Заголовок окна (Title Bar) -->
+    <div class="h-11 px-4 border-b border-zinc-850 flex items-center justify-between bg-zinc-900/90 backdrop-blur-md select-none app-drag">
+      <div class="flex items-center gap-2.5">
+        <div id="app-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+        <span class="text-xs font-bold tracking-widest text-zinc-200 uppercase font-mono">KD CONNECT</span>
+      </div>
+      <div class="flex items-center gap-1 app-no-drag">
+        <button onclick="toggleSettings(true)" title="Настройки" class="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+        <button onclick="handleMinimize()" title="Свернуть на панель задач" class="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+        </button>
+        <button onclick="handleClose()" title="Закрыть" class="text-zinc-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-zinc-800 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ОСНОВНОЙ ВИД ПРИЛОЖЕНИЯ -->
+    <div id="main-view" class="flex-1 p-5 flex flex-col justify-between overflow-hidden">
+
+      <!-- ================== РЕЖИМ 1 И 3: СИСТЕМЫ ГОТОВЫ / ОШИБКА ================== -->
+      <div id="section-prep" class="flex-1 flex flex-col justify-between">
+        
+        <!-- Верхняя статус-карточка готовности -->
+        <div id="prep-status-card" class="p-4 rounded-xl border bg-zinc-900/60 border-zinc-800">
+          <div class="flex items-center gap-2">
+            <div id="prep-badge-dot" class="w-2 h-2 rounded-full bg-zinc-400"></div>
+            <span id="prep-status-title" class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-300">СИСТЕМЫ ГОТОВЫ</span>
+          </div>
+          <p id="prep-status-desc" class="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+            Ожидание запуска Hunt: Showdown 1896 и старта сессии на сайте.
+          </p>
+        </div>
+
+        <!-- Контроль 3 систем -->
+        <div class="space-y-2 py-3">
+          <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Контроль готовности систем</div>
+
+          <!-- 1. Логи NVIDIA -->
+          <div class="p-2.5 bg-zinc-900/40 border border-zinc-850 rounded-lg flex items-center justify-between">
+            <div class="truncate max-w-[240px]">
+              <div class="text-xs font-medium text-zinc-200">Логи драйвера NVIDIA</div>
+              <div class="text-[10px] text-zinc-500 font-mono truncate">%LOCALAPPDATA%\NVIDIA\GfeSDK</div>
+            </div>
+            <span class="text-emerald-400 text-xs font-mono font-semibold">ОК</span>
+          </div>
+
+          <!-- 2. Лог игры Hunt -->
+          <div class="p-2.5 bg-zinc-900/40 border border-zinc-850 rounded-lg flex items-center justify-between">
+            <div class="truncate max-w-[240px]">
+              <div class="text-xs font-medium text-zinc-200">Лог игры (Game.log)</div>
+              <div class="text-[10px] text-zinc-500 font-mono truncate">SteamApps\common\Hunt 1896\user</div>
+            </div>
+            <span id="prep-gamelog-status" class="text-emerald-400 text-xs font-mono font-semibold">ОК</span>
+          </div>
+
+          <!-- Кнопка ручного указания папки при ошибке -->
+          <div id="prep-gamelog-fix" class="hidden p-2.5 bg-rose-950/20 border border-rose-900/40 rounded-lg flex items-center justify-between">
+            <span class="text-[11px] text-rose-300">Файл Game.log не найден</span>
+            <button onclick="pickFolder()" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 rounded text-xs text-zinc-200 transition">
+              Указать папку...
+            </button>
+          </div>
+
+          <!-- 3. Токен профиля -->
+          <div class="p-2.5 bg-zinc-900/40 border border-zinc-850 rounded-lg flex items-center justify-between">
+            <div class="truncate max-w-[240px]">
+              <div class="text-xs font-medium text-zinc-200">Профиль KD Metrika</div>
+              <div class="text-[10px] text-zinc-500 font-mono">4ejlobek_xajlat (связан)</div>
+            </div>
+            <span class="text-emerald-400 text-xs font-mono font-semibold">ОК</span>
+          </div>
+        </div>
+
+        <!-- Кнопка проверки -->
+        <button onclick="runCheckAnimation()" id="btn-check" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 rounded-xl text-xs font-medium text-zinc-300 hover:text-white transition flex items-center justify-center gap-2">
+          <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span id="btn-check-text">Проверить системы</span>
+        </button>
+
+      </div>
+
+      <!-- ================== РЕЖИМ 2: СЕССИЯ АКТИВНА (БЕЗ ЛИШНИХ ТОЧЕК) ================== -->
+      <div id="section-active" class="hidden flex-1 flex flex-col items-center justify-center text-center space-y-6 px-3">
+        
+        <!-- Чистая иконка молнии (без дублирующего кружка) -->
+        <div class="w-16 h-16 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 flex items-center justify-center text-emerald-400 pulse-glow">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+
+        <!-- Заголовок и статус активного сбора -->
+        <div class="space-y-2">
+          <div class="text-xs font-bold font-mono uppercase tracking-widest text-emerald-400">
+            Сессия активна
+          </div>
+          <h2 class="text-base font-semibold text-zinc-100">
+            Идет автоматический сбор статистики
+          </h2>
+          <p class="text-xs text-zinc-400 leading-relaxed max-w-[280px]">
+            Данные каждого матча передаются на сайт в режиме реального времени. Приложение можно свернуть.
+          </p>
+        </div>
+
+        <!-- Крупная кнопка перехода на сайт -->
+        <a href="https://kdmetrika.ru/u/4ejlobek_xajlat" target="_blank" class="w-full py-3 px-4 bg-zinc-900 hover:bg-zinc-850 border border-zinc-700/80 hover:border-zinc-600 rounded-xl text-xs font-medium text-white transition flex items-center justify-center gap-2 group shadow-lg">
+          <span>Открыть мою статистику на kdmetrika.ru</span>
+          <svg class="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </a>
+
+      </div>
+
+    </div>
+
+    <!-- ================== ЭКРАН НАСТРОЕК (КОМПАКТНЫЙ) ================== -->
+    <div id="settings-view" class="hidden absolute inset-0 bg-zinc-950 flex flex-col z-20">
+      
+      <!-- Шапка настроек -->
+      <div class="h-11 px-4 border-b border-zinc-850 flex items-center justify-between bg-zinc-900 select-none">
+        <span class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-200">НАСТРОЙКИ</span>
+        <button onclick="toggleSettings(false)" class="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Контент настроек -->
+      <div class="flex-1 p-5 space-y-4 overflow-y-auto custom-scroll">
+        
+        <!-- 1. Токен синхронизации -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-zinc-200">Токен синхронизации (sync_token)</label>
+          <div class="flex gap-2">
+            <input type="password" value="kdm_live_9f81a7b204e38c" class="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-600" />
+            <button onclick="alert('Связь подтверждена! Профиль: 4ejlobek_xajlat')" class="px-3 py-1.5 bg-zinc-850 hover:bg-zinc-800 border border-zinc-750 rounded-lg text-xs font-medium text-zinc-200">
+              Связать
+            </button>
+          </div>
+          <p class="text-[10px] text-zinc-500">Токен из настроек профиля: kdmetrika.ru/settings</p>
+        </div>
+
+        <div class="h-px bg-zinc-850"></div>
+
+        <!-- 2. Инструкция по кнопке (не перегружает экран) -->
+        <div class="p-3 bg-zinc-900/60 border border-zinc-850 rounded-xl flex items-center justify-between">
+          <div>
+            <div class="text-xs font-medium text-zinc-200">Инструкция и решение проблем</div>
+            <div class="text-[10px] text-zinc-500">Пошаговое руководство и частые ошибки</div>
+          </div>
+          <button onclick="toggleHelpModal(true)" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 rounded-lg text-xs font-medium text-zinc-200 transition">
+            Открыть →
+          </button>
+        </div>
+
+        <div class="h-px bg-zinc-850"></div>
+
+        <!-- 3. Отправка отчета об ошибке сразу на сервер -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-medium text-zinc-200">Техническая помощь</div>
+          <button onclick="sendTicketMock()" id="btn-ticket" class="w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 rounded-lg text-xs font-medium text-zinc-300 hover:text-white transition flex items-center justify-center gap-2">
+            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            <span id="btn-ticket-text">Отправить отчет об ошибке на сервер</span>
+          </button>
+          <p class="text-[10px] text-zinc-500">Автоматически отправляет тикет с логами последних 10 сессий.</p>
+        </div>
+
+        <div class="h-px bg-zinc-850"></div>
+
+        <!-- 4. О программе -->
+        <div class="p-3 bg-zinc-900/40 border border-zinc-850 rounded-xl flex items-center justify-between text-xs">
+          <div>
+            <div class="font-medium text-zinc-200">KD Connect</div>
+            <div class="text-[10px] text-zinc-500 font-mono">Версия v1.0</div>
+          </div>
+          <button onclick="alert('У вас установлена последняя версия v1.0')" class="px-2.5 py-1.5 bg-zinc-850 hover:bg-zinc-800 border border-zinc-750 rounded-lg text-xs font-medium text-zinc-300 transition">
+            Обновления
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Кнопка возврата -->
+      <div class="p-4 border-t border-zinc-850">
+        <button onclick="toggleSettings(false)" class="w-full py-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 rounded-xl text-xs font-medium text-zinc-200 transition">
+          Вернуться на главный экран
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ================== ОТДЕЛЬНЫЙ ПОП-АП С ПОДРОБНОЙ ИНСТРУКЦИЕЙ ================== -->
+    <div id="help-modal" class="hidden absolute inset-0 bg-zinc-950 flex flex-col z-30">
+      
+      <!-- Шапка поп-апа -->
+      <div class="h-11 px-4 border-b border-zinc-850 flex items-center justify-between bg-zinc-900 select-none">
+        <span class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-200">СПРАВОЧНЫЙ ЦЕНТР</span>
+        <button onclick="toggleHelpModal(false)" class="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Содержимое поп-апа -->
+      <div class="flex-1 p-5 space-y-4 overflow-y-auto custom-scroll text-xs">
+        
+        <!-- Раздел 1: Первый запуск -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold text-zinc-200 font-mono uppercase tracking-wide">1. Первый запуск</div>
+          <p class="text-zinc-400 leading-relaxed text-[11px]">
+            1. Зайдите на сайт в профиль: <span class="text-zinc-200 font-mono">kdmetrika.ru/settings</span>.<br>
+            2. Скопируйте личный <span class="text-zinc-200 font-mono">sync_token</span> и вставьте в настройках программы.<br>
+            3. Нажмите кнопку «Связать». При успехе появится ваш игровой никнейм.<br>
+            4. Вернитесь на главный экран и нажмите «Проверить системы».
+          </p>
+        </div>
+
+        <div class="h-px bg-zinc-850"></div>
+
+        <!-- Раздел 2: Оверлей NVIDIA -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold text-amber-400 font-mono uppercase tracking-wide">2. Как включить NVIDIA Оверлей</div>
+          <p class="text-zinc-400 leading-relaxed text-[11px]">
+            Если пункт «Логи драйвера NVIDIA» горит красным:<br>
+            • <b>В NVIDIA App:</b> Нажмите шестеренку (Настройки) слева внизу → раздел «Система» → включите тумблер <b>«Внутриигровой оверлей»</b>.<br>
+            • <b>В GeForce Experience:</b> Шестеренка вверху → вкладка «Общие» → тумблер <b>«Внутриигровой оверлей»</b> (зеленый).<br>
+            • Быстрая проверка: нажмите горячие клавиши <kbd class="px-1 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-300">Alt + Z</kbd> — если панель NVIDIA открылась, оверлей активен.
+          </p>
+        </div>
+
+        <div class="h-px bg-zinc-850"></div>
+
+        <!-- Раздел 3: Поиск папки и Game.log -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold text-amber-400 font-mono uppercase tracking-wide">3. Лог игры (Game.log) и пути</div>
+          <p class="text-zinc-400 leading-relaxed text-[11px]">
+            <b>Как ищет программа:</b> Программа автоматически читает реестр библиотек Steam на всех дисках (C:, D:, E:) и находит путь к игре без сканирования системы.<br><br>
+            <b>Почему лог может не находиться:</b><br>
+            1. <i>Игра еще не запускалась:</i> файл <code class="text-zinc-300">Game.log</code> создается движком игры только во время первого входа в Hunt. Запустите игру один раз.<br>
+            2. <i>Нестандартная папка:</i> если игра перенесена вручную, нажмите кнопку <b>«Указать папку...»</b> и выберите корневую папку <code class="text-zinc-300">Hunt Showdown 1896</code>. Лог лежит в подпапке <code class="text-zinc-300">\user\Game.log</code>.
+          </p>
+        </div>
+
+        <div class="h-px bg-zinc-850"></div>
+
+        <!-- Раздел 4: Ошибка профиля -->
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold text-amber-400 font-mono uppercase tracking-wide">4. Ошибка привязки токена</div>
+          <p class="text-zinc-400 leading-relaxed text-[11px]">
+            Если проверка профиля не проходит:<br>
+            • Проверьте, что скопировали токен целиком без лишних пробелов.<br>
+            • Убедитесь, что сессия на сайте активна и в настройках профиля включена синхронизация.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Кнопка возврата в настройки -->
+      <div class="p-4 border-t border-zinc-850">
+        <button onclick="toggleHelpModal(false)" class="w-full py-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 rounded-xl text-xs font-medium text-zinc-200 transition">
+          Понятно, вернуться в настройки
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    function handleMinimize() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.minimize();
+      }
+    }
+
+    function handleClose() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.close();
+      } else {
+        window.close();
+      }
+    }
+
+    function pickFolder() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.select_folder().then(folder => {
+          if (folder) {
+            alert('Выбрана папка Hunt Showdown: ' + folder);
+            setMode('ready');
+          }
+        });
+      } else {
+        alert('Открытие проводника для выбора папки Hunt Showdown 1896');
+      }
+    }
+
+    function toggleSettings(show) {
+      const settingsView = document.getElementById('settings-view');
+      if (show) {
+        settingsView.classList.remove('hidden');
+      } else {
+        settingsView.classList.add('hidden');
+        toggleHelpModal(false);
+      }
+    }
+
+    function toggleHelpModal(show) {
+      const helpModal = document.getElementById('help-modal');
+      if (show) {
+        helpModal.classList.remove('hidden');
+      } else {
+        helpModal.classList.add('hidden');
+      }
+    }
+
+    function setMode(mode) {
+      toggleSettings(false);
+      toggleHelpModal(false);
+
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.className = "mode-btn px-3 py-1.5 rounded-lg text-xs font-medium transition text-zinc-400 hover:text-white hover:bg-zinc-800/50";
+      });
+      document.getElementById('btn-' + mode).className = "mode-btn px-3 py-1.5 rounded-lg text-xs font-medium transition bg-zinc-800 text-white border border-zinc-700";
+
+      const appDot = document.getElementById('app-status-dot');
+      const prepCard = document.getElementById('prep-status-card');
+      const prepBadgeDot = document.getElementById('prep-badge-dot');
+      const prepTitle = document.getElementById('prep-status-title');
+      const prepDesc = document.getElementById('prep-status-desc');
+      const prepGamelogStatus = document.getElementById('prep-gamelog-status');
+      const prepGamelogFix = document.getElementById('prep-gamelog-fix');
+
+      const secPrep = document.getElementById('section-prep');
+      const secActive = document.getElementById('section-active');
+
+      if (mode === 'ready') {
+        secPrep.classList.remove('hidden');
+        secActive.classList.add('hidden');
+
+        appDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+        prepBadgeDot.className = "w-2 h-2 rounded-full bg-zinc-400";
+        prepTitle.innerText = "СИСТЕМЫ ГОТОВЫ";
+        prepTitle.className = "text-xs font-bold uppercase tracking-wider font-mono text-zinc-300";
+        prepDesc.innerText = "Ожидание запуска Hunt: Showdown 1896 и старта сессии на сайте.";
+        prepCard.className = "p-4 rounded-xl border bg-zinc-900/60 border-zinc-800";
+        prepGamelogStatus.innerText = "ОК";
+        prepGamelogStatus.className = "text-emerald-400 text-xs font-mono font-semibold";
+        prepGamelogFix.classList.add('hidden');
+      } 
+      else if (mode === 'active') {
+        secPrep.classList.add('hidden');
+        secActive.classList.remove('hidden');
+
+        appDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-glow animate-pulse";
+      } 
+      else if (mode === 'error') {
+        secPrep.classList.remove('hidden');
+        secActive.classList.add('hidden');
+
+        appDot.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+        prepBadgeDot.className = "w-2 h-2 rounded-full bg-rose-500";
+        prepTitle.innerText = "ТРЕБУЕТСЯ НАСТРОЙКА";
+        prepTitle.className = "text-xs font-bold uppercase tracking-wider font-mono text-rose-400";
+        prepDesc.innerText = "Не удалось автоматически обнаружить файл Game.log. Укажите папку с игрой вручную.";
+        prepCard.className = "p-4 rounded-xl border bg-rose-950/20 border-rose-900/40";
+        prepGamelogStatus.innerText = "ОШИБКА";
+        prepGamelogStatus.className = "text-rose-400 text-xs font-mono font-semibold";
+        prepGamelogFix.classList.remove('hidden');
+      }
+    }
+
+    function runCheckAnimation() {
+      const text = document.getElementById('btn-check-text');
+      text.innerText = "Проверка систем...";
+      setTimeout(() => {
+        text.innerText = "Все системы проверены (ОК)";
+        setTimeout(() => {
+          text.innerText = "Проверить системы";
+        }, 1500);
+      }, 500);
+    }
+
+    function sendTicketMock() {
+      const btn = document.getElementById('btn-ticket-text');
+      btn.innerText = "Отправка логов на сервер...";
+      setTimeout(() => {
+        btn.innerText = "Тикет #104 отправлен разработчику!";
+        setTimeout(() => {
+          btn.innerText = "Отправить отчет об ошибке на сервер";
+        }, 2500);
+      }, 700);
+    }
+  </script>
+</body>
+</html>

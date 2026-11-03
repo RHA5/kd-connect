@@ -1,0 +1,23 @@
+# PyInstaller & build
+build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Executables & temporary files
+*.exe
+*.log
+*.tmp
+*.bak
+
+# Sensitive or user-specific configs
+kd_connect_config.json
+local_config.json
+.env
+
+# Test assets
+test_*.ico
+badge_preview.png
+
