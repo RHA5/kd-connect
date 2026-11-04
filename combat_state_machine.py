@@ -35,6 +35,11 @@ class CombatStateMachine:
         self.last_death_time = 0
         self.last_kill_time = 0
 
+        # Метки экрана смерти (UI Framework Game.log)
+        self.death_screen_open = False
+        self.last_death_screen_time = 0
+        self.last_death_screen_close_time = 0
+
     def feed_game_log_line(self, line):
         line = line.strip()
         if not line:
@@ -84,14 +89,49 @@ class CombatStateMachine:
                     self._end_session("disconnect")
                 return
 
-            # 3. Сигнал смерти охотника: Starting UI state machine 'death/StateMachine'
+            # 3. Сигнал экрана смерти охотника: Starting/Stopping UI state machine 'death/StateMachine'
+            # ВНИМАНИЕ: Сам по себе экран смерти НЕ является доказательством гибели игрока!
+            # Он повторно открывается при наблюдении за напарником (в спектаторе) и при выходе.
+            # Настоящая смерть локального игрока всегда сопровождается событием NVIDIA Highlights.
             if "Starting UI state machine 'death/StateMachine'" in line:
                 now = time.monotonic()
-                self.last_death_time = now
+                self.death_screen_open = True
+                self.last_death_screen_time = now
+                return
 
-                if self.session_active:
+            if "Stopping UI state machine 'death/StateMachine'" in line:
+                self.death_screen_open = False
+                self.last_death_screen_close_time = time.monotonic()
+                return
+
+    def feed_nvidia_line(self, line):
+        line = line.strip()
+        if not line:
+            return
+
+        # Сигнал видеодрайвера: Posted Request HLSetVideo[...]
+        # Является ЕДИНСТВЕННЫМ первичным триггером боевых действий локального охотника.
+        if "Posted Request HLSetVideo" in line:
+            with self.lock:
+                if not self.session_active:
+                    # Вне матча хайлайты не засчитываются
+                    return
+
+                now = time.monotonic()
+
+                # Проверяем корреляцию: совпал ли сигнал NVIDIA с открытием экрана смерти в окне 2.5 сек
+                is_death_correlated = self.death_screen_open or (now - self.last_death_screen_time) <= 2.5
+
+                if is_death_correlated:
+                    # Событие: СМЕРТЬ ЛОКАЛЬНОГО ОХОТНИКА
+                    # Защита от дублирования сигналов одного и того же события гибели
+                    if (now - self.last_death_time) <= 1.5 and self.last_death_time > 0:
+                        return
+
                     self.deaths += 1
+                    self.last_death_time = now
                     is_trade = False
+
                     # Проверка на размен (Trade): убийство врага было совершено <= 1.5 сек назад
                     if (now - self.last_kill_time) <= 1.5 and self.last_kill_time > 0:
                         self.trades += 1
@@ -103,40 +143,27 @@ class CombatStateMachine:
                             self.on_event(ev_type, 1, self._get_match_stats())
                         except Exception:
                             pass
-                return
+                else:
+                    # Событие: УБИЙСТВО ВРАГА
+                    # Защита от эха драйвера после смерти
+                    if (now - self.last_death_time) <= 0.45 and self.last_death_time > 0:
+                        return
 
-    def feed_nvidia_line(self, line):
-        line = line.strip()
-        if not line:
-            return
+                    self.kills += 1
+                    self.last_kill_time = now
+                    is_trade = False
 
-        # Сигнал видеодрайвера: Posted Request HLSetVideo[...]
-        if "Posted Request HLSetVideo" in line:
-            with self.lock:
-                if not self.session_active:
-                    # Вне матча хайлайты не засчитываются
-                    return
+                    # Проверка на размен (Trade): охотник погиб <= 1.5 сек назад
+                    if (now - self.last_death_time) <= 1.5 and self.last_death_time > 0:
+                        self.trades += 1
+                        is_trade = True
 
-                now = time.monotonic()
-                # Проверяем: если смерть УЖЕ произошла в последние 450 мс (драйвер среагировал на свою смерть)
-                if (now - self.last_death_time) <= 0.45:
-                    return
-
-                self.kills += 1
-                self.last_kill_time = now
-                is_trade = False
-
-                # Проверка на размен (Trade): охотник погиб <= 1.5 сек назад
-                if (now - self.last_death_time) <= 1.5 and self.last_death_time > 0:
-                    self.trades += 1
-                    is_trade = True
-
-                if self.on_event:
-                    try:
-                        ev_type = "trade" if is_trade else "kill"
-                        self.on_event(ev_type, 1, self._get_match_stats())
-                    except Exception:
-                        pass
+                    if self.on_event:
+                        try:
+                            ev_type = "trade" if is_trade else "kill"
+                            self.on_event(ev_type, 1, self._get_match_stats())
+                        except Exception:
+                            pass
 
     def _start_session(self, map_name):
         self.session_active = True
@@ -148,6 +175,9 @@ class CombatStateMachine:
         self.trades = 0
         self.last_kill_time = 0
         self.last_death_time = 0
+        self.death_screen_open = False
+        self.last_death_screen_time = 0
+        self.last_death_screen_close_time = 0
 
         if self.on_session_start:
             try:

@@ -5,7 +5,7 @@ import time
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.9.1-beta"
+APP_VERSION = "v0.9.5-beta"
 GITHUB_REPO = "RHA5/kd-connect"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
@@ -131,6 +131,9 @@ class AppApi:
                         profile_info["username"] = _parse_username(resp_data)
                         profile_info["active_session"] = resp_data.get("active_session")
                         profile_info["manual_conflict"] = resp_data.get("manual_conflict", False)
+                        profile_info["ask_mood_on_start"] = resp_data.get("ask_mood_on_start", False)
+                        profile_info["base_kills"] = resp_data.get("base_kills", 0)
+                        profile_info["base_deaths"] = resp_data.get("base_deaths", 0)
                     else:
                         profile_info["status"] = "error"
             except Exception:
@@ -184,7 +187,7 @@ class AppApi:
         except Exception:
             return {"success": False, "error": "Сервер недоступен (проверьте подключение)"}
 
-    def start_session(self):
+    def start_session(self, mood_rating=None):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
@@ -192,6 +195,8 @@ class AppApi:
 
         api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
         payload = {"type": "session_start"}
+        if mood_rating is not None:
+            payload["mood_rating"] = mood_rating
         try:
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
@@ -212,7 +217,7 @@ class AppApi:
         except Exception as ex:
             return {"success": False, "error": f"Сбой соединения: {ex}"}
 
-    def end_session(self):
+    def end_session(self, adjusted_kills=None, adjusted_deaths=None):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
@@ -220,6 +225,10 @@ class AppApi:
 
         api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
         payload = {"type": "session_end"}
+        if adjusted_kills is not None:
+            payload["adjusted_kills"] = adjusted_kills
+        if adjusted_deaths is not None:
+            payload["adjusted_deaths"] = adjusted_deaths
         try:
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
@@ -254,7 +263,10 @@ class AppApi:
                     return {
                         "success": True,
                         "active_session": resp_data.get("active_session"),
-                        "manual_conflict": resp_data.get("manual_conflict", False)
+                        "manual_conflict": resp_data.get("manual_conflict", False),
+                        "ask_mood_on_start": resp_data.get("ask_mood_on_start", False),
+                        "base_kills": resp_data.get("base_kills", 0),
+                        "base_deaths": resp_data.get("base_deaths", 0)
                     }
                 return {"success": False, "active_session": None, "manual_conflict": False}
         except Exception:

@@ -105,7 +105,7 @@ def detect_hunt_directory(custom_path=None):
             direct_log = os.path.join(norm_custom, "user", "Game.log")
             if os.path.exists(direct_log):
                 return norm_custom, direct_log, 'ok'
-            if os.path.exists(os.path.join(norm_custom, "HuntGame.exe")) or os.path.exists(os.path.join(norm_custom, "bin")):
+            if os.path.exists(os.path.join(norm_custom, "hunt.exe")) or os.path.exists(os.path.join(norm_custom, "Hunt.exe")) or os.path.exists(os.path.join(norm_custom, "bin")):
                 return norm_custom, direct_log, 'log_missing_yet'
 
             # 2. Проверка, если выбрана папка common или steamapps
@@ -134,7 +134,7 @@ def detect_hunt_directory(custom_path=None):
                 has_log = os.path.exists(game_log)
                 mtime = os.path.getmtime(game_log) if has_log else 0
                 is_1896 = 1 if "1896" in folder_name else 0
-                has_exe = os.path.exists(os.path.join(norm_dir, "HuntGame.exe")) or os.path.exists(os.path.join(norm_dir, "bin"))
+                has_exe = os.path.exists(os.path.join(norm_dir, "hunt.exe")) or os.path.exists(os.path.join(norm_dir, "Hunt.exe")) or os.path.exists(os.path.join(norm_dir, "bin"))
                 
                 if has_log:
                     found_games.append({
@@ -154,10 +154,23 @@ def detect_hunt_directory(custom_path=None):
                     })
 
     if found_games:
-        # Приоритет: 1. Папка со свежим Game.log, 2. Новая папка 1896, 3. Самый свежий mtime лога
-        found_games.sort(key=lambda x: (x["status"] == "ok", x["is_1896"], x["mtime"]), reverse=True)
-        best = found_games[0]
-        return best["dir"], best["log"], best["status"]
+        # 1. Если на диске присутствует хотя бы одна папка новой версии "1896",
+        # работаем СТРОГО с ней, полностью игнорируя старые заброшенные папки без "1896"
+        games_1896 = [g for g in found_games if g["is_1896"] == 1]
+        target_pool = games_1896 if games_1896 else found_games
+
+        # 2. Ищем папки с логами внутри выбранного целевого пула
+        pool_with_log = [g for g in target_pool if g["status"] == "ok"]
+        if len(pool_with_log) == 1:
+            return pool_with_log[0]["dir"], pool_with_log[0]["log"], "ok"
+        elif len(pool_with_log) > 1:
+            pool_with_log.sort(key=lambda x: x["mtime"], reverse=True)
+            return pool_with_log[0]["dir"], pool_with_log[0]["log"], "ok"
+
+        # 3. Если логов в пуле еще нет (требуется первый запуск актуальной версии)
+        pool_without_log = [g for g in target_pool if g["status"] == "log_missing_yet"]
+        if pool_without_log:
+            return pool_without_log[0]["dir"], pool_without_log[0]["log"], "log_missing_yet"
 
     return None, None, 'not_found'
 

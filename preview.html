@@ -316,34 +316,60 @@
       </div>
     </div>
     <!-- 3. ГЛАВНЫЙ ЭКРАН: ОЖИДАНИЕ (СЕССИЯ НЕ ЗАПУЩЕНА) -->
-    <div id="section-idle" class="flex-1 flex flex-col justify-between">
-      <div class="space-y-4 pt-1">
+    <div id="section-idle" class="flex-1 flex flex-col justify-between overflow-hidden">
+      <div class="space-y-3 pt-1 flex-1 overflow-y-auto custom-scroll pr-1">
         <!-- Карточка привязанного профиля -->
-        <div class="p-4 rounded-2xl bg-zinc-900/70 border border-zinc-850 space-y-1">
-          <span class="text-[11px] font-mono text-zinc-500 uppercase tracking-wider block">Привязанный профиль</span>
-          <span id="idle-username" class="text-lg font-bold text-white font-mono block">R_H_A</span>
+        <div class="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-850 space-y-0.5 shrink-0">
+          <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">Привязанный профиль</span>
+          <span id="idle-username" class="text-base font-bold text-white font-mono block">R_H_A</span>
         </div>
-        <!-- Предупреждение об ошибке NVIDIA оверлея (скрыто по умолчанию) -->
-        <div id="idle-nv-error-box" class="hidden p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-xs">
+
+        <!-- Предупреждение об ошибке папки игры Hunt / логов (скрыто по умолчанию) -->
+        <div id="idle-game-error-box" class="hidden p-3 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-xs">
           <div class="flex items-center gap-2 text-rose-400 font-bold">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span id="idle-nv-error-title">Оверлей NVIDIA не обнаружен</span>
+            <span id="idle-game-error-title">Папка игры Hunt не найдена</span>
+          </div>
+          <p id="idle-game-error-msg" class="text-zinc-300 leading-relaxed text-[11px]">
+            Не удалось обнаружить установленную игру Hunt: Showdown в библиотеках Steam.
+          </p>
+          <div id="idle-game-error-instructions" class="pt-1.5 border-t border-rose-900/60 text-[11px] text-zinc-400 space-y-1">
+            <span class="font-bold text-zinc-300 block">Что делать:</span>
+            <div>1. Убедитесь, что Hunt: Showdown 1896 установлен в Steam.</div>
+            <div>2. Укажите папку игры вручную (где лежит <b>Hunt.exe</b>).</div>
+          </div>
+          <div id="idle-game-error-action" class="pt-1 flex items-center justify-between gap-2">
+            <button onclick="handleSelectFolder()" class="px-3 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 border border-rose-700/60 text-white rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+              <span>Выбрать папку</span>
+            </button>
+            <button onclick="toggleSettings(true)" class="text-xs text-rose-300 hover:text-rose-200 underline font-mono cursor-pointer">
+              <span>Настройки ⚙</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Предупреждение об ошибке NVIDIA оверлея (скрыто по умолчанию) -->
+        <div id="idle-nv-error-box" class="hidden p-3 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-xs">
+          <div class="flex items-center gap-2 text-rose-400 font-bold">
+            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span id="idle-nv-error-title">Оверлей NVIDIA выключен</span>
           </div>
           <p id="idle-nv-error-msg" class="text-zinc-300 leading-relaxed text-[11px]">
             Внутриигровой оверлей выключен или не установлен. Без него автоматическая фиксация убийств не работает.
           </p>
-          <div class="pt-1.5 border-t border-rose-900/60 text-[11px] text-zinc-400 space-y-1">
+          <div id="idle-nv-error-instructions" class="pt-1.5 border-t border-rose-900/60 text-[11px] text-zinc-400 space-y-1">
             <span class="font-bold text-zinc-300 block">Как включить:</span>
             <div>1. <b>NVIDIA App:</b> <i>Настройки → Функции → Оверлей NVIDIA (Вкл)</i></div>
             <div>2. <b>GeForce Experience:</b> <i>Настройки → Общие → Внутриигровой оверлей (Вкл)</i></div>
           </div>
-          <button onclick="checkSystemsReal()" class="pt-1 text-xs text-rose-300 hover:text-rose-200 underline font-mono flex items-center gap-1 cursor-pointer">
+          <button onclick="checkSystemsReal()" class="pt-0.5 text-xs text-rose-300 hover:text-rose-200 underline font-mono flex items-center gap-1 cursor-pointer">
             <span>Проверить снова ↻</span>
           </button>
         </div>
 
         <!-- Предупреждение о конфликте ручной сессии (скрыто по умолчанию) -->
-        <div id="idle-manual-conflict-box" class="hidden p-3.5 rounded-2xl bg-amber-950/40 border border-amber-800/60 space-y-2 text-xs">
+        <div id="idle-manual-conflict-box" class="hidden p-3 rounded-2xl bg-amber-950/40 border border-amber-800/60 space-y-2 text-xs">
           <div class="flex items-center gap-2 text-amber-400 font-bold">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             <span>На сайте активна ручная сессия</span>
@@ -356,13 +382,13 @@
           </button>
         </div>
 
-        <!-- Текст-описание (показывается, когда нет конфликта) -->
-        <div id="idle-desc-box" class="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-850/60 text-xs text-zinc-400 leading-relaxed">
+        <!-- Текст-описание (показывается, когда нет конфликта и нет ошибок) -->
+        <div id="idle-desc-box" class="p-3.5 rounded-2xl bg-zinc-900/40 border border-zinc-850/60 text-xs text-zinc-400 leading-relaxed">
           Игровая статистика будет фиксироваться в фоне без необходимости открывать сайт и вводить данные вручную.
         </div>
       </div>
       <!-- Главная кнопка старта сессии -->
-      <div class="pt-2">
+      <div class="pt-3 shrink-0">
         <button id="btn-start-session" onclick="handleStartSession()" class="w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-black rounded-2xl text-xs uppercase tracking-wider shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
           <svg class="w-4 h-4 fill-black" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           <span>НАЧАТЬ СЕССИЮ</span>
@@ -415,16 +441,108 @@
             Ожидание старта следующего матча
           </div>
         </div>
+        <!-- Кнопка перехода к аналитике/дашборду на сайте -->
+        <button onclick="handleOpenDashboard()" class="w-full py-2.5 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white font-mono rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+          <span>Открыть статистику на сайте ↗</span>
+        </button>
       </div>
       <!-- Завершение сессии -->
-      <div class="space-y-2 pt-2 border-t border-zinc-850">
-        <p class="text-[11px] text-zinc-500 text-center leading-snug">
-          Финальная сверка статистики с игрой и сохранение сессии происходят на сайте.
-        </p>
-        <button id="btn-end-session" onclick="handleEndSessionWebsite()" class="w-full py-3 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-          <span>ЗАВЕРШИТЬ СЕССИЮ НА САЙТЕ ↗</span>
+      <div class="pt-2 border-t border-zinc-850">
+        <button id="btn-end-session" onclick="handleShowVerification()" class="w-full py-3.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+          <span>ЗАВЕРШИТЬ СЕССИЮ</span>
         </button>
+      </div>
+    </div>
+    <!-- 5. ЭКРАН СВЕРКИ И РЕДАКТИРОВАНИЯ СТАТИСТИКИ (ПЕРЕД ФИНАЛИЗАЦИЕЙ) -->
+    <div id="section-verify" class="hidden flex-1 flex flex-col justify-between select-none">
+      <div class="space-y-3">
+        <!-- Шапка сверки -->
+        <div class="flex items-center justify-between pb-2 border-b border-zinc-850">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-zinc-300"></span>
+            <span class="text-xs font-mono font-bold text-zinc-200 uppercase tracking-wider">СВЕРКА СТАТИСТИКИ</span>
+          </div>
+          <button onclick="handleCancelVerification()" class="text-zinc-500 hover:text-zinc-300 text-xs font-mono transition-colors cursor-pointer">
+            Отмена
+          </button>
+        </div>
+
+        <!-- Карточка 1: Итоги сессии -->
+        <div class="p-3 rounded-2xl bg-zinc-900/80 border border-zinc-850 space-y-2">
+          <div class="flex items-center justify-between text-[10px] font-mono text-zinc-400 uppercase tracking-wider">
+            <span>ИТОГИ ТЕКУЩЕЙ СЕССИИ</span>
+            <span id="verify-matches-count-label" class="text-zinc-500">0 матчей</span>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 text-center">
+            <!-- Киллы сессии -->
+            <div class="p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex flex-col items-center justify-center">
+              <span class="text-[10px] text-zinc-500 font-mono uppercase">КИЛЛЫ</span>
+              <div class="flex items-center justify-center gap-2 mt-1">
+                <button id="btn-adjust-kill-minus" onclick="adjustStat('kills', -1)" class="verify-edit-btn hidden w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono font-bold text-xs flex items-center justify-center transition-colors cursor-pointer">–</button>
+                <span id="verify-stat-kills" class="text-lg font-mono font-bold text-white tabular-nums">0</span>
+                <button id="btn-adjust-kill-plus" onclick="adjustStat('kills', 1)" class="verify-edit-btn hidden w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono font-bold text-xs flex items-center justify-center transition-colors cursor-pointer">+</button>
+              </div>
+            </div>
+
+            <!-- Смерти сессии -->
+            <div class="p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex flex-col items-center justify-center">
+              <span class="text-[10px] text-zinc-500 font-mono uppercase">СМЕРТИ</span>
+              <div class="flex items-center justify-center gap-2 mt-1">
+                <button id="btn-adjust-death-minus" onclick="adjustStat('deaths', -1)" class="verify-edit-btn hidden w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono font-bold text-xs flex items-center justify-center transition-colors cursor-pointer">–</button>
+                <span id="verify-stat-deaths" class="text-lg font-mono font-bold text-white tabular-nums">0</span>
+                <button id="btn-adjust-death-plus" onclick="adjustStat('deaths', 1)" class="verify-edit-btn hidden w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono font-bold text-xs flex items-center justify-center transition-colors cursor-pointer">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between px-1 text-xs font-mono text-zinc-400 pt-0.5">
+            <span>KD СЕССИИ:</span>
+            <span id="verify-stat-session-kd" class="font-bold text-white">0.00</span>
+          </div>
+        </div>
+
+        <!-- Карточка 2: Общие цифры в лобби Hunt -->
+        <div class="p-3 rounded-2xl bg-zinc-900/50 border border-zinc-850/80 space-y-1.5">
+          <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">ОБЩАЯ СТАТИСТИКА В ЛОББИ ХАНТА</span>
+          <div class="grid grid-cols-2 gap-2 text-center pt-0.5">
+            <div class="p-2 rounded-xl bg-zinc-950/40 border border-zinc-850/60">
+              <span class="text-[10px] text-zinc-500 font-mono uppercase block">ВСЕГО КИЛЛОВ</span>
+              <span id="verify-stat-total-kills" class="text-sm font-mono font-bold text-zinc-200 tabular-nums">0</span>
+            </div>
+            <div class="p-2 rounded-xl bg-zinc-950/40 border border-zinc-850/60">
+              <span class="text-[10px] text-zinc-500 font-mono uppercase block">ВСЕГО СМЕРТЕЙ</span>
+              <span id="verify-stat-total-deaths" class="text-sm font-mono font-bold text-zinc-200 tabular-nums">0</span>
+            </div>
+          </div>
+          <p class="text-[11px] text-zinc-400 font-sans leading-snug pt-1">
+            Убедитесь, что общее число киллов и смертей совпадает со статистикой в лобби игры.
+          </p>
+          <div id="verify-edit-hint" class="hidden text-[10px] text-emerald-400 font-mono">
+            ✓ Корректировка будет распределена по матчам
+          </div>
+        </div>
+      </div>
+
+      <!-- Кнопки действий -->
+      <div class="pt-2 border-t border-zinc-850 space-y-2">
+        <div id="verify-default-actions" class="grid grid-cols-2 gap-2">
+          <button onclick="toggleVerifyEditMode(true)" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer">
+            Редактировать
+          </button>
+          <button id="btn-submit-ok" onclick="handleFinishSessionDirect()" class="py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
+            Всё верно
+          </button>
+        </div>
+        <div id="verify-edit-actions" class="hidden grid grid-cols-2 gap-2">
+          <button onclick="handleResetAdjustments()" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 font-medium rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer">
+            Сбросить
+          </button>
+          <button id="btn-submit-adjusted" onclick="handleFinishSessionAdjusted()" class="py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
+            Сохранить
+          </button>
+        </div>
       </div>
     </div>
     <!-- ================== ОКНО «НАСТРОЙКИ» ================== -->
@@ -438,7 +556,7 @@
           <span class="text-zinc-700 font-mono">/</span>
           <span class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-300">Настройки</span>
         </div>
-        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.9.1-beta</span></span>
+        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.9.5-beta</span></span>
       </div>
       <div class="flex-1 p-4 space-y-3 overflow-y-auto custom-scroll text-xs">
         <!-- Статус 1: NVIDIA -->
@@ -450,12 +568,21 @@
           <div id="nv-path-desc" class="text-[11px] text-zinc-500 font-mono truncate">Проверка...</div>
         </div>
         <!-- Статус 2: Hunt Game -->
-        <div class="p-3 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-1">
+        <div class="p-3 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-medium text-zinc-200">Папка игры Hunt</span>
             <span id="game-badge" class="font-mono font-bold text-zinc-400 text-xs">...</span>
           </div>
           <div id="game-path-desc" class="text-[11px] text-zinc-500 font-mono truncate">Проверка...</div>
+          <div class="pt-1 flex items-center gap-2 border-t border-zinc-850/80">
+            <button onclick="handleSelectFolder()" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+              <span>Указать папку</span>
+            </button>
+            <button id="btn-reset-folder" onclick="handleResetFolder()" class="hidden px-2.5 py-1 text-zinc-500 hover:text-zinc-300 text-xs font-mono transition-colors cursor-pointer">
+              <span>Сбросить автопоиск ↻</span>
+            </button>
+          </div>
         </div>
         <!-- Статус 3: Токен и Профиль -->
         <div class="p-3 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-1">
@@ -480,6 +607,42 @@
           <button id="btn-save-log" onclick="handleSaveLog()" class="py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
             <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             <span class="truncate">Сохранить лог</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- МОДАЛКА: ВЫБОР НАСТРОЕНИЯ ПЕРЕД СТАРТОМ СЕССИИ -->
+    <div id="modal-mood" class="hidden absolute inset-0 bg-black/80 backdrop-blur-xs z-50 flex flex-col justify-end p-3 select-none">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+          <div>
+            <span class="text-xs font-mono font-bold text-white uppercase tracking-wider block">ПАРАМЕТРЫ СЕССИИ</span>
+            <span class="text-[10px] text-zinc-400 font-mono">ТЕКУЩЕЕ СОСТОЯНИЕ</span>
+          </div>
+          <button onclick="closeMoodModal()" class="text-zinc-500 hover:text-zinc-300 font-mono text-sm cursor-pointer p-1">✕</button>
+        </div>
+
+        <div class="grid grid-cols-5 gap-1.5 pt-1">
+          <button onclick="handleSelectMoodAndStart(1)" class="py-2.5 px-1 bg-zinc-950/70 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[11px] font-mono font-medium transition-colors text-center cursor-pointer flex flex-col items-center gap-1">
+            <span>Ужасно</span>
+          </button>
+          <button onclick="handleSelectMoodAndStart(2)" class="py-2.5 px-1 bg-zinc-950/70 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[11px] font-mono font-medium transition-colors text-center cursor-pointer flex flex-col items-center gap-1">
+            <span>Плохо</span>
+          </button>
+          <button onclick="handleSelectMoodAndStart(3)" class="py-2.5 px-1 bg-zinc-950/70 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[11px] font-mono font-medium transition-colors text-center cursor-pointer flex flex-col items-center gap-1">
+            <span>Средне</span>
+          </button>
+          <button onclick="handleSelectMoodAndStart(4)" class="py-2.5 px-1 bg-zinc-950/70 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[11px] font-mono font-medium transition-colors text-center cursor-pointer flex flex-col items-center gap-1">
+            <span>Хорошо</span>
+          </button>
+          <button onclick="handleSelectMoodAndStart(5)" class="py-2.5 px-1 bg-zinc-950/70 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-[11px] font-mono font-medium transition-colors text-center cursor-pointer flex flex-col items-center gap-1">
+            <span>Отлично</span>
+          </button>
+        </div>
+
+        <div class="pt-0.5">
+          <button onclick="handleSelectMoodAndStart(null)" class="w-full py-1.5 text-zinc-500 hover:text-zinc-300 text-[11px] font-mono text-center cursor-pointer transition-colors">
+            Пропустить опрос →
           </button>
         </div>
       </div>
@@ -646,14 +809,48 @@
       }
       checkSystemsReal();
     }
-    // --- УПРАВЛЕНИЕ СЕССИЕЙ ---
-    async function handleStartSession() {
+    // --- УПРАВЛЕНИЕ СЕССИЕЙ И СВЕРКОЙ ---
+    let currentSessionSnapshot = {
+      sessionId: null,
+      matchesCount: 0,
+      initialKills: 0,
+      initialDeaths: 0,
+      serverKills: 0,
+      serverDeaths: 0,
+      adjustedKills: 0,
+      adjustedDeaths: 0,
+    };
+    let isVerifyEditActive = false;
+
+    function handleStartSession() {
+      const askMood = Boolean(appState && appState.profile && appState.profile.ask_mood_on_start);
+      if (askMood) {
+        const modal = document.getElementById('modal-mood');
+        if (modal) modal.classList.remove('hidden');
+        return;
+      }
+      executeStartSession(null);
+    }
+
+    function closeMoodModal() {
+      const modal = document.getElementById('modal-mood');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function handleSelectMoodAndStart(rating) {
+      closeMoodModal();
+      await executeStartSession(rating);
+    }
+
+    async function executeStartSession(moodRating) {
       const btn = document.getElementById('btn-start-session');
-      btn.disabled = true;
-      btn.innerHTML = `<span class="animate-pulse">Запуск сессии...</span>`;
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-pulse">Запуск сессии...</span>`;
+      }
       if (window.pywebview && window.pywebview.api) {
         try {
-          const res = await window.pywebview.api.start_session();
+          const res = await window.pywebview.api.start_session(moodRating);
           if (res && res.success) {
             isSessionActive = true;
             const createdAt = res.created_at ? new Date(res.created_at).getTime() : Date.now();
@@ -671,13 +868,146 @@
           alert('Ошибка соединения с сервером');
         }
       }
-      btn.disabled = false;
-      btn.innerHTML = `<svg class="w-4 h-4 fill-black" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>НАЧАТЬ СЕССИЮ</span>`;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="w-4 h-4 fill-black" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>НАЧАТЬ СЕССИЮ</span>`;
+      }
     }
-    function handleEndSessionWebsite() {
+
+    function handleShowVerification() {
+      if (appState && appState.profile) {
+        const p = appState.profile;
+        const s = p.active_session || {};
+        currentSessionSnapshot.sessionId = s.session_id || null;
+        currentSessionSnapshot.matchesCount = s.session_matches_count || s.matches_count || 0;
+        currentSessionSnapshot.initialKills = Number(s.initial_kills !== undefined ? s.initial_kills : (p.base_kills || 0));
+        currentSessionSnapshot.initialDeaths = Number(s.initial_deaths !== undefined ? s.initial_deaths : (p.base_deaths || 0));
+        currentSessionSnapshot.serverKills = Number(s.session_kills || 0);
+        currentSessionSnapshot.serverDeaths = Number(s.session_deaths || 0);
+        currentSessionSnapshot.adjustedKills = currentSessionSnapshot.serverKills;
+        currentSessionSnapshot.adjustedDeaths = currentSessionSnapshot.serverDeaths;
+      }
+
+      isVerifyEditActive = false;
+      renderVerificationUi();
+
+      document.getElementById('section-active').classList.add('hidden');
+      document.getElementById('section-verify').classList.remove('hidden');
+    }
+
+    function handleCancelVerification() {
+      document.getElementById('section-verify').classList.add('hidden');
+      document.getElementById('section-active').classList.remove('hidden');
+      toggleVerifyEditMode(false);
+    }
+
+    function toggleVerifyEditMode(enable) {
+      isVerifyEditActive = enable;
+      const editBtns = document.querySelectorAll('.verify-edit-btn');
+      editBtns.forEach(btn => {
+        if (enable) btn.classList.remove('hidden');
+        else btn.classList.add('hidden');
+      });
+
+      const defaultActions = document.getElementById('verify-default-actions');
+      const editActions = document.getElementById('verify-edit-actions');
+      const editHint = document.getElementById('verify-edit-hint');
+
+      if (enable) {
+        defaultActions.classList.add('hidden');
+        editActions.classList.remove('hidden');
+        if (editHint) editHint.classList.remove('hidden');
+      } else {
+        defaultActions.classList.remove('hidden');
+        editActions.classList.add('hidden');
+        if (editHint) editHint.classList.add('hidden');
+      }
+    }
+
+    function adjustStat(type, delta) {
+      if (type === 'kills') {
+        currentSessionSnapshot.adjustedKills = Math.max(0, currentSessionSnapshot.adjustedKills + delta);
+      } else if (type === 'deaths') {
+        currentSessionSnapshot.adjustedDeaths = Math.max(0, currentSessionSnapshot.adjustedDeaths + delta);
+      }
+      renderVerificationUi();
+    }
+
+    function handleResetAdjustments() {
+      currentSessionSnapshot.adjustedKills = currentSessionSnapshot.serverKills;
+      currentSessionSnapshot.adjustedDeaths = currentSessionSnapshot.serverDeaths;
+      renderVerificationUi();
+      toggleVerifyEditMode(false);
+    }
+
+    function renderVerificationUi() {
+      const k = currentSessionSnapshot.adjustedKills;
+      const d = currentSessionSnapshot.adjustedDeaths;
+      const initK = currentSessionSnapshot.initialKills;
+      const initD = currentSessionSnapshot.initialDeaths;
+
+      const kEl = document.getElementById('verify-stat-kills');
+      if (kEl) kEl.innerText = k;
+      const dEl = document.getElementById('verify-stat-deaths');
+      if (dEl) dEl.innerText = d;
+      const mEl = document.getElementById('verify-matches-count-label');
+      if (mEl) mEl.innerText = `${currentSessionSnapshot.matchesCount} матчей`;
+
+      const kd = d > 0 ? (k / d).toFixed(2) : k.toFixed(2);
+      const kdEl = document.getElementById('verify-stat-session-kd');
+      if (kdEl) kdEl.innerText = kd;
+
+      const totalK = initK + k;
+      const totalD = initD + d;
+      const tkEl = document.getElementById('verify-stat-total-kills');
+      if (tkEl) tkEl.innerText = totalK;
+      const tdEl = document.getElementById('verify-stat-total-deaths');
+      if (tdEl) tdEl.innerText = totalD;
+    }
+
+    async function handleFinishSessionDirect() {
+      await executeEndSession(null, null);
+    }
+
+    async function handleFinishSessionAdjusted() {
+      await executeEndSession(currentSessionSnapshot.adjustedKills, currentSessionSnapshot.adjustedDeaths);
+    }
+
+    async function executeEndSession(adjKills, adjDeaths) {
+      const btn1 = document.getElementById('btn-submit-ok');
+      const btn2 = document.getElementById('btn-submit-adjusted');
+      if (btn1) { btn1.disabled = true; btn1.innerText = 'Сохранение...'; }
+      if (btn2) { btn2.disabled = true; btn2.innerText = 'Сохранение...'; }
+
+      if (window.pywebview && window.pywebview.api) {
+        try {
+          const res = await window.pywebview.api.end_session(adjKills, adjDeaths);
+          if (res && res.success) {
+            isSessionActive = false;
+            resetSessionUi();
+            document.getElementById('section-verify').classList.add('hidden');
+            document.getElementById('section-idle').classList.remove('hidden');
+            document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-zinc-600';
+            document.getElementById('app-status-dot').title = 'Ожидание сессии';
+            checkSystemsReal();
+          } else {
+            alert(res && res.error ? res.error : 'Ошибка при завершении сессии');
+          }
+        } catch(e) {
+          alert('Ошибка соединения с сервером');
+        }
+      }
+
+      if (btn1) { btn1.disabled = false; btn1.innerText = 'Всё верно'; }
+      if (btn2) { btn2.disabled = false; btn2.innerText = 'Сохранить'; }
+    }
+
+    function handleOpenDashboard() {
+      const username = (appState && appState.profile && appState.profile.username) ? appState.profile.username : '';
       const config = appState && appState.config ? appState.config : {};
       const baseUrl = config.api_base_url || 'http://localhost:3000';
-      openExternalUrl(baseUrl);
+      const targetUrl = username ? `${baseUrl}/${encodeURIComponent(username)}` : `${baseUrl}/dashboard`;
+      openExternalUrl(targetUrl);
     }
     function startSessionTimer(initialSec = 0) {
       if (sessionTimerInterval) clearInterval(sessionTimerInterval);
@@ -714,7 +1044,7 @@
       if (kd) kd.innerText = '0.00';
       const g = document.getElementById('stat-kd-growth');
       if (g) {
-        g.innerText = '+0.00';
+        g.innerText = '+0.00000';
         g.className = 'text-base font-mono font-bold mt-0.5 text-emerald-400';
       }
       const t = document.getElementById('match-card-title');
@@ -741,10 +1071,25 @@
       if (data.session_kd !== undefined) {
         document.getElementById('stat-session-kd').innerText = Number(data.session_kd).toFixed(2);
       }
+      if (data.session_id) currentSessionSnapshot.sessionId = data.session_id;
+      if (data.initial_kills !== undefined) currentSessionSnapshot.initialKills = Number(data.initial_kills);
+      if (data.initial_deaths !== undefined) currentSessionSnapshot.initialDeaths = Number(data.initial_deaths);
+      if (kills !== undefined) {
+        currentSessionSnapshot.serverKills = Number(kills);
+        if (!isVerifyEditActive) currentSessionSnapshot.adjustedKills = Number(kills);
+      }
+      if (deaths !== undefined) {
+        currentSessionSnapshot.serverDeaths = Number(deaths);
+        if (!isVerifyEditActive) currentSessionSnapshot.adjustedDeaths = Number(deaths);
+      }
+      if (matches !== undefined) {
+        currentSessionSnapshot.matchesCount = matches;
+      }
       if (data.kd_growth !== undefined) {
         const g = Number(data.kd_growth);
         const el = document.getElementById('stat-kd-growth');
-        el.innerText = (g >= 0 ? '+' : '') + g.toFixed(2);
+        const sign = g > 0 ? '+' : '';
+        el.innerText = sign + g.toFixed(5);
         el.className = `text-base font-mono font-bold mt-0.5 ${g >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
       }
       if (data.match_number) {
@@ -838,27 +1183,73 @@
       if (usernameEl) usernameEl.innerText = profile.username || 'Игрок не привязан';
       const isManualConflict = Boolean(profile && profile.manual_conflict);
       const conflictBox = document.getElementById('idle-manual-conflict-box');
+      const gameErrorBox = document.getElementById('idle-game-error-box');
+      const nvErrorBox = document.getElementById('idle-nv-error-box');
       const descBox = document.getElementById('idle-desc-box');
       const startBtn = document.getElementById('btn-start-session');
 
-      const nvErrorBox = document.getElementById('idle-nv-error-box');
-      if (conflictBox && descBox && nvErrorBox) {
+      if (conflictBox && gameErrorBox && nvErrorBox && descBox) {
         if (isManualConflict) {
           conflictBox.classList.remove('hidden');
+          gameErrorBox.classList.add('hidden');
           nvErrorBox.classList.add('hidden');
           descBox.classList.add('hidden');
-        } else if (!nvOk) {
-          conflictBox.classList.add('hidden');
-          nvErrorBox.classList.remove('hidden');
-          descBox.classList.add('hidden');
-          const msgEl = document.getElementById('idle-nv-error-msg');
-          if (msgEl && nvidia.message) {
-            msgEl.innerText = `${nvidia.message}. Без активного оверлея фиксация убийств невозможна.`;
-          }
         } else {
           conflictBox.classList.add('hidden');
-          nvErrorBox.classList.add('hidden');
-          descBox.classList.remove('hidden');
+
+          // Ошибка игры (папка или отсутствие логов)
+          if (!gameOk) {
+            gameErrorBox.classList.remove('hidden');
+            const gTitle = document.getElementById('idle-game-error-title');
+            const gMsg = document.getElementById('idle-game-error-msg');
+            const gInst = document.getElementById('idle-game-error-instructions');
+            const gAct = document.getElementById('idle-game-error-action');
+
+            if (gameMissing) {
+              if (gTitle) gTitle.innerText = 'Логи игры еще не созданы';
+              if (gMsg) gMsg.innerText = 'Папка игры найдена, но файл user/Game.log отсутствует.';
+              if (gInst) gInst.innerHTML = `<span class="font-bold text-zinc-300 block">Что делать:</span><div>1. Запустите <b>Hunt: Showdown 1896</b> один раз до главного меню (игра создаст файл логов).</div><div>2. Вернитесь в KD Connect и нажмите «Проверить снова».</div>`;
+              if (gAct) gAct.innerHTML = `<button onclick="checkSystemsReal()" class="text-xs text-rose-300 hover:text-rose-200 underline font-mono flex items-center gap-1 cursor-pointer"><span>Проверить снова ↻</span></button>`;
+            } else {
+              if (gTitle) gTitle.innerText = 'Папка игры Hunt не найдена';
+              if (gMsg) gMsg.innerText = 'Не удалось обнаружить игру ни в одной библиотеке Steam. Без доступа к логам трекинг невозможен.';
+              if (gInst) gInst.innerHTML = `<span class="font-bold text-zinc-300 block">Что делать:</span><div>1. Убедитесь, что Hunt: Showdown 1896 установлен в Steam.</div><div>2. Укажите папку игры вручную (где лежит <b>Hunt.exe</b>).</div>`;
+              if (gAct) gAct.innerHTML = `<div class="flex items-center justify-between w-full gap-2"><button onclick="handleSelectFolder()" class="px-3 py-1.5 bg-rose-900/50 hover:bg-rose-900/80 border border-rose-700/60 text-white rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg><span>Выбрать папку</span></button><button onclick="toggleSettings(true)" class="text-xs text-rose-300 hover:text-rose-200 underline font-mono cursor-pointer"><span>Настройки ⚙</span></button></div>`;
+            }
+          } else {
+            gameErrorBox.classList.add('hidden');
+          }
+
+          // Ошибка NVIDIA оверлея
+          if (!nvOk) {
+            nvErrorBox.classList.remove('hidden');
+            const titleEl = document.getElementById('idle-nv-error-title');
+            const msgEl = document.getElementById('idle-nv-error-msg');
+            const instEl = document.getElementById('idle-nv-error-instructions');
+            const rawMsg = (nvidia.message || '').toLowerCase();
+
+            if (rawMsg.includes('папка') || rawMsg.includes('не найден')) {
+              if (titleEl) titleEl.innerText = 'Папка оверлея не найдена';
+              if (msgEl) msgEl.innerText = 'Папка оверлея еще не создана. Без нее фиксация убийств не работает.';
+              if (instEl) {
+                instEl.innerHTML = `<span class="font-bold text-zinc-300 block">Что сделать:</span><div>Запустите <b>Hunt: Showdown 1896</b> один раз до главного меню, чтобы игра создала папку оверлея.</div>`;
+              }
+            } else {
+              if (titleEl) titleEl.innerText = 'Оверлей NVIDIA выключен';
+              if (msgEl) msgEl.innerText = 'Внутриигровой оверлей выключен или не установлен.';
+              if (instEl) {
+                instEl.innerHTML = `<span class="font-bold text-zinc-300 block">Как включить:</span><div>1. <b>NVIDIA App:</b> <i>Настройки → Функции → Оверлей NVIDIA (Вкл)</i></div><div>2. <b>GeForce Experience:</b> <i>Настройки → Общие → Внутриигровой оверлей (Вкл)</i></div>`;
+              }
+            }
+          } else {
+            nvErrorBox.classList.add('hidden');
+          }
+
+          if (gameOk && nvOk) {
+            descBox.classList.remove('hidden');
+          } else {
+            descBox.classList.add('hidden');
+          }
         }
       }
 
@@ -883,7 +1274,8 @@
           startSessionTimer(elapsedSec);
         }
         updateSessionStatsUi(profile.active_session);
-        if (canShowMain) {
+        const isVerifyShowing = !document.getElementById('section-verify').classList.contains('hidden');
+        if (canShowMain && !isVerifyShowing) {
           document.getElementById('section-idle').classList.add('hidden');
           document.getElementById('section-active').classList.remove('hidden');
           document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-glow-green';
@@ -895,6 +1287,7 @@
           resetSessionUi();
           if (canShowMain) {
             document.getElementById('section-active').classList.add('hidden');
+            document.getElementById('section-verify').classList.add('hidden');
             document.getElementById('section-idle').classList.remove('hidden');
             document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-zinc-600';
             document.getElementById('app-status-dot').title = 'Ожидание сессии';
@@ -905,9 +1298,15 @@
       document.getElementById('nv-badge').innerText = nvOk ? 'OK' : 'Ошибка';
       document.getElementById('nv-badge').className = `font-mono font-bold text-xs ${nvOk ? 'text-emerald-400' : 'text-rose-400'}`;
       document.getElementById('nv-path-desc').innerText = nvidia.message || (nvidia.log_path || 'Логи не найдены');
-      document.getElementById('game-badge').innerText = gameOk ? 'OK' : 'Ошибка';
+      const isCustomPath = Boolean(config && config.custom_hunt_path);
+      document.getElementById('game-badge').innerText = gameOk ? (isCustomPath ? 'OK (Вручную)' : 'OK') : (isCustomPath ? 'Ошибка (Вручную)' : 'Ошибка');
       document.getElementById('game-badge').className = `font-mono font-bold text-xs ${gameOk ? 'text-emerald-400' : 'text-rose-400'}`;
       document.getElementById('game-path-desc').innerText = game.dir || 'Папка игры не найдена';
+      const resetBtn = document.getElementById('btn-reset-folder');
+      if (resetBtn) {
+        if (isCustomPath) resetBtn.classList.remove('hidden');
+        else resetBtn.classList.add('hidden');
+      }
       document.getElementById('token-badge').innerText = profileOk ? `OK (${profile.username})` : 'Не привязан';
       document.getElementById('token-badge').className = `font-mono font-bold text-xs ${profileOk ? 'text-emerald-400' : 'text-amber-400'}`;
       document.getElementById('token-status-msg').innerText = profileOk ? `Токен действителен (${profile.username})` : 'Токен не настроен';
@@ -961,6 +1360,12 @@
         if (res && res.success) {
           checkSystemsReal();
         }
+      }
+    }
+    async function handleResetFolder() {
+      if (window.pywebview && window.pywebview.api) {
+        await window.pywebview.api.reset_custom_folder();
+        checkSystemsReal();
       }
     }
     async function handleSendReport() {
@@ -1029,7 +1434,7 @@ ${res.path}`);
         cardTitle.innerText = 'В БОЮ';
         cardTitle.className = 'font-mono font-bold text-emerald-400 uppercase tracking-wider text-xs flex items-center gap-1.5';
       }
-      if (cardDesc) cardDesc.innerText = data && data.map ? 'Карта: ' + data.map : 'Идет матч в Hunt: Showdown';
+      if (cardDesc) cardDesc.innerText = 'Матч активен';
       startMatchTimer(0);
     };
 
@@ -1095,25 +1500,29 @@ ${res.path}`);
           const descBox = document.getElementById('idle-desc-box');
           const startBtn = document.getElementById('btn-start-session');
 
+          const gameErrorBox = document.getElementById('idle-game-error-box');
           const nvErrorBox = document.getElementById('idle-nv-error-box');
           const nvOk = appState && appState.nvidia && appState.nvidia.status === 'ok';
           const gameOk = appState && appState.game && appState.game.status === 'ok';
           const profileOk = appState && appState.profile && appState.profile.status === 'ok';
           const allReady = nvOk && gameOk && profileOk && !isManualConflict;
 
-          if (conflictBox && descBox && nvErrorBox) {
+          if (conflictBox && gameErrorBox && nvErrorBox && descBox) {
             if (isManualConflict) {
               conflictBox.classList.remove('hidden');
+              gameErrorBox.classList.add('hidden');
               nvErrorBox.classList.add('hidden');
-              descBox.classList.add('hidden');
-            } else if (!nvOk) {
-              conflictBox.classList.add('hidden');
-              nvErrorBox.classList.remove('hidden');
               descBox.classList.add('hidden');
             } else {
               conflictBox.classList.add('hidden');
-              nvErrorBox.classList.add('hidden');
-              descBox.classList.remove('hidden');
+              if (!gameOk) gameErrorBox.classList.remove('hidden');
+              else gameErrorBox.classList.add('hidden');
+
+              if (!nvOk) nvErrorBox.classList.remove('hidden');
+              else nvErrorBox.classList.add('hidden');
+
+              if (gameOk && nvOk) descBox.classList.remove('hidden');
+              else descBox.classList.add('hidden');
             }
           }
 
@@ -1132,7 +1541,8 @@ ${res.path}`);
               const createdAt = new Date(res.active_session.created_at).getTime();
               const elapsedSec = isNaN(createdAt) ? 0 : Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
               startSessionTimer(elapsedSec);
-              if (canShowMain) {
+              const isVerifyShowing = !document.getElementById('section-verify').classList.contains('hidden');
+              if (canShowMain && !isVerifyShowing) {
                 document.getElementById('section-idle').classList.add('hidden');
                 document.getElementById('section-active').classList.remove('hidden');
                 document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-glow-green';
@@ -1146,6 +1556,7 @@ ${res.path}`);
               resetSessionUi();
               if (canShowMain) {
                 document.getElementById('section-active').classList.add('hidden');
+                document.getElementById('section-verify').classList.add('hidden');
                 document.getElementById('section-idle').classList.remove('hidden');
                 document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-zinc-600';
                 document.getElementById('app-status-dot').title = 'Ожидание сессии';
