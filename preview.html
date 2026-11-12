@@ -556,7 +556,7 @@
           <span class="text-zinc-700 font-mono">/</span>
           <span class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-300">Настройки</span>
         </div>
-        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.9.5-beta</span></span>
+        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.9.12-beta</span></span>
       </div>
       <div class="flex-1 p-4 space-y-3 overflow-y-auto custom-scroll text-xs">
         <!-- Статус 1: NVIDIA -->
@@ -598,15 +598,11 @@
             Пройти настройку заново
           </button>
         </div>
-        <!-- Отчет и Лог -->
-        <div class="grid grid-cols-2 gap-2 pt-1">
-          <button id="btn-send-report" onclick="handleSendReport()" class="py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span class="truncate">Отправить отчет</span>
-          </button>
-          <button id="btn-save-log" onclick="handleSaveLog()" class="py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+        <!-- Экспорт лога -->
+        <div class="pt-1">
+          <button id="btn-save-log" onclick="handleSaveLog()" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
             <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            <span class="truncate">Сохранить лог</span>
+            <span>Сохранить лог на Рабочий стол</span>
           </button>
         </div>
       </div>
@@ -643,6 +639,48 @@
         <div class="pt-0.5">
           <button onclick="handleSelectMoodAndStart(null)" class="w-full py-1.5 text-zinc-500 hover:text-zinc-300 text-[11px] font-mono text-center cursor-pointer transition-colors">
             Пропустить опрос →
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- МОДАЛКА: ОБНАРУЖЕНЫ ОТЛОЖЕННЫЕ МАТЧИ ("ВСЕ ИЛИ НИЧЕГО") -->
+    <div id="modal-pending" class="hidden absolute inset-0 bg-black/85 backdrop-blur-xs z-50 flex flex-col justify-end p-3 select-none">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+          <div>
+            <span class="text-xs font-mono font-bold text-white uppercase tracking-wider block">ОТЛОЖЕННЫЕ МАТЧИ</span>
+            <span class="text-[10px] text-zinc-400 font-mono">СЫГРАНО ДО СТАРТА СЕССИИ</span>
+          </div>
+          <button onclick="handleDiscardPendingAndStart()" class="text-zinc-500 hover:text-zinc-300 font-mono text-sm cursor-pointer p-1">✕</button>
+        </div>
+
+        <div class="text-xs text-zinc-300 space-y-2">
+          <p class="text-[11px] leading-relaxed text-zinc-300">
+            Обнаружено <span id="pending-count" class="font-bold text-white">0</span> матчей до нажатия кнопки старта:
+          </p>
+          <div class="p-3 bg-zinc-950/70 border border-zinc-800 rounded-xl space-y-1.5 font-mono text-xs">
+            <div class="flex justify-between items-center text-zinc-400">
+              <span>Результат каток:</span>
+              <span class="font-semibold text-white">
+                <span id="pending-kills" class="text-zinc-200">+0</span> / <span id="pending-deaths" class="text-zinc-400">-0</span>
+              </span>
+            </div>
+            <div class="flex justify-between items-center text-zinc-400 pt-1.5 border-t border-zinc-850">
+              <span>Итог в лобби станет:</span>
+              <span id="pending-lobby-stats" class="text-white font-semibold">0 / 0</span>
+            </div>
+          </div>
+          <p class="text-[10px] text-zinc-400 leading-tight">
+            Учесть их в сессии (таймер стартует со времени первой катки) или начать с нуля?
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-1.5 pt-1">
+          <button onclick="handleAcceptPendingAndStart()" class="w-full py-2.5 px-3 rounded-xl bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors cursor-pointer text-center">
+            Учесть все в сессии
+          </button>
+          <button onclick="handleDiscardPendingAndStart()" class="w-full py-2 px-3 rounded-xl bg-zinc-800/60 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-center text-xs">
+            Сбросить и начать с нуля
           </button>
         </div>
       </div>
@@ -822,14 +860,73 @@
     };
     let isVerifyEditActive = false;
 
-    function handleStartSession() {
+    let pendingMatchesState = null;
+    let pendingRetroTime = null;
+
+    async function handleStartSession() {
+      // 1. Проверяем наличие отложенных матчей в буфере трекера
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.get_pending_matches) {
+        try {
+          const pending = await window.pywebview.api.get_pending_matches();
+          if (pending && pending.has_pending) {
+            pendingMatchesState = pending;
+            const countEl = document.getElementById('pending-count');
+            if (countEl) countEl.innerText = pending.count;
+            const killsEl = document.getElementById('pending-kills');
+            if (killsEl) killsEl.innerText = `+${pending.kills}`;
+            const deathsEl = document.getElementById('pending-deaths');
+            if (deathsEl) deathsEl.innerText = `-${pending.deaths}`;
+
+            const baseKills = Number(appState?.profile?.base_kills || 0);
+            const baseDeaths = Number(appState?.profile?.base_deaths || 0);
+            const totalKills = baseKills + pending.kills;
+            const totalDeaths = baseDeaths + pending.deaths;
+            const lobbyEl = document.getElementById('pending-lobby-stats');
+            if (lobbyEl) lobbyEl.innerText = `${totalKills} / ${totalDeaths}`;
+
+            const modal = document.getElementById('modal-pending');
+            if (modal) {
+              modal.classList.remove('hidden');
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Error checking pending matches:", e);
+        }
+      }
+
+      // Если отложенных матчей нет — обычный запуск
+      proceedToStart(null);
+    }
+
+    function handleAcceptPendingAndStart() {
+      const modal = document.getElementById('modal-pending');
+      if (modal) modal.classList.add('hidden');
+      const retroTime = pendingMatchesState ? pendingMatchesState.retroactive_created_at : null;
+      proceedToStart(retroTime);
+    }
+
+    async function handleDiscardPendingAndStart() {
+      const modal = document.getElementById('modal-pending');
+      if (modal) modal.classList.add('hidden');
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.clear_pending_matches) {
+        try {
+          await window.pywebview.api.clear_pending_matches();
+        } catch (e) {}
+      }
+      pendingMatchesState = null;
+      proceedToStart(null);
+    }
+
+    function proceedToStart(retroactiveCreatedAt) {
+      pendingRetroTime = retroactiveCreatedAt;
       const askMood = Boolean(appState && appState.profile && appState.profile.ask_mood_on_start);
       if (askMood) {
         const modal = document.getElementById('modal-mood');
         if (modal) modal.classList.remove('hidden');
         return;
       }
-      executeStartSession(null);
+      executeStartSession(null, pendingRetroTime);
     }
 
     function closeMoodModal() {
@@ -839,10 +936,10 @@
 
     async function handleSelectMoodAndStart(rating) {
       closeMoodModal();
-      await executeStartSession(rating);
+      await executeStartSession(rating, pendingRetroTime);
     }
 
-    async function executeStartSession(moodRating) {
+    async function executeStartSession(moodRating, retroactiveCreatedAt = null) {
       const btn = document.getElementById('btn-start-session');
       if (btn) {
         btn.disabled = true;
@@ -850,10 +947,10 @@
       }
       if (window.pywebview && window.pywebview.api) {
         try {
-          const res = await window.pywebview.api.start_session(moodRating);
+          const res = await window.pywebview.api.start_session(moodRating, retroactiveCreatedAt);
           if (res && res.success) {
             isSessionActive = true;
-            const createdAt = res.created_at ? new Date(res.created_at).getTime() : Date.now();
+            const createdAt = (res.session_created_at || res.created_at) ? new Date(res.session_created_at || res.created_at).getTime() : Date.now();
             const elapsedSec = isNaN(createdAt) ? 0 : Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
             startSessionTimer(elapsedSec);
             updateSessionStatsUi(res);
@@ -874,7 +971,20 @@
       }
     }
 
-    function handleShowVerification() {
+    async function handleShowVerification() {
+      const btn = document.getElementById('btn-end-session');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'СИНХРОНИЗАЦИЯ...';
+      }
+      try {
+        await checkSystemsReal();
+      } catch (e) {}
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = 'ЗАВЕРШИТЬ СЕССИЮ';
+      }
+
       if (appState && appState.profile) {
         const p = appState.profile;
         const s = p.active_session || {};
@@ -986,6 +1096,7 @@
             isSessionActive = false;
             resetSessionUi();
             document.getElementById('section-verify').classList.add('hidden');
+            document.getElementById('section-active').classList.add('hidden');
             document.getElementById('section-idle').classList.remove('hidden');
             document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-zinc-600';
             document.getElementById('app-status-dot').title = 'Ожидание сессии';
@@ -1282,16 +1393,14 @@
           document.getElementById('app-status-dot').title = 'Сессия активна';
         }
       } else {
-        if (isSessionActive) {
-          isSessionActive = false;
-          resetSessionUi();
-          if (canShowMain) {
-            document.getElementById('section-active').classList.add('hidden');
-            document.getElementById('section-verify').classList.add('hidden');
-            document.getElementById('section-idle').classList.remove('hidden');
-            document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-zinc-600';
-            document.getElementById('app-status-dot').title = 'Ожидание сессии';
-          }
+        isSessionActive = false;
+        resetSessionUi();
+        if (canShowMain) {
+          document.getElementById('section-active').classList.add('hidden');
+          document.getElementById('section-verify').classList.add('hidden');
+          document.getElementById('section-idle').classList.remove('hidden');
+          document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-zinc-600';
+          document.getElementById('app-status-dot').title = 'Ожидание сессии';
         }
       }
       // Настройки View
@@ -1393,7 +1502,7 @@ ${res.path}`);
         }
       }
       btn.disabled = false;
-      btn.innerHTML = `<svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg><span class="truncate">Сохранить лог</span>`;
+      btn.innerHTML = `<svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg><span>Сохранить лог на Рабочий стол</span>`;
     }
     // --- СЛУШАТЕЛИ СОБЫТИЙ ДВИЖКА ХАНТА ---
     let matchTimerInterval = null;

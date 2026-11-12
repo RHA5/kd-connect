@@ -174,8 +174,8 @@ def detect_hunt_directory(custom_path=None):
 
     return None, None, 'not_found'
 
-def is_nvidia_overlay_running():
-    """Проверяет, активна ли служба внутриигрового оверлея NVIDIA (NVIDIA Share / nvsphelper64)."""
+def _is_any_process_running(target_names):
+    """Проверяет, запущен ли хотя бы один из указанных процессов Windows."""
     if sys.platform != 'win32':
         return False
     try:
@@ -200,7 +200,6 @@ def is_nvidia_overlay_running():
             return False
         entry = PROCESSENTRY32()
         entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
-        target_names = {'nvidiashare.exe', 'nvsphelper64.exe'}
         found = False
         if ctypes.windll.kernel32.Process32First(hSnapshot, ctypes.byref(entry)):
             while True:
@@ -214,6 +213,14 @@ def is_nvidia_overlay_running():
         return found
     except Exception:
         return False
+
+def is_nvidia_overlay_running():
+    """Проверяет, активна ли служба внутриигрового оверлея NVIDIA (NVIDIA Share / nvsphelper64)."""
+    return _is_any_process_running({'nvidiashare.exe', 'nvsphelper64.exe'})
+
+def is_hunt_running():
+    """Проверяет, запущен ли процесс Hunt: Showdown 1896 (HuntGame.exe)."""
+    return _is_any_process_running({'huntgame.exe'})
 
 def detect_nvidia_log():
     """

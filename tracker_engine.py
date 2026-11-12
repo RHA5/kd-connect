@@ -40,6 +40,10 @@ class TrackerEngine:
     def stop(self):
         self.running = False
         try:
+            self.state_machine._cancel_reconnect_timer()
+        except Exception:
+            pass
+        try:
             self.network_sync.stop()
         except Exception:
             pass
@@ -48,6 +52,7 @@ class TrackerEngine:
         """Быстро пробегает лог с начала для точного восстановления активного лобби."""
         if not log_path or not os.path.exists(log_path):
             return
+        self.state_machine.is_warming_up = True
         try:
             with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 for line in f:
@@ -55,6 +60,8 @@ class TrackerEngine:
                         self.state_machine.feed_game_log_line(line)
         except Exception:
             pass
+        finally:
+            self.state_machine.is_warming_up = False
 
     def _ensure_tailers(self):
         config = config_manager.load_config()
@@ -65,8 +72,13 @@ class TrackerEngine:
         if status == 'ok' and game_log:
             if game_log != self.current_hunt_log_path or self.game_tailer is None:
                 self.current_hunt_log_path = game_log
-                self._warmup_lobby_mode(game_log)
-                # При старте встаем в конец файла, чтобы не парсить вчерашние матчи
+                if hunt_detector.is_hunt_running():
+                    # Игра уже запущена: восстанавливаем актуальное состояние матча / лобби из живого лога
+                    self.state_machine.warmup_from_game_log(game_log)
+                else:
+                    # Старый лог выключенной игры: восстанавливаем только режим лобби
+                    self._warmup_lobby_mode(game_log)
+                # Встаем в конец файла, чтобы не дублировать старые события
                 self.game_tailer = LogTailer(game_log, start_at_end=True)
         else:
             self.game_tailer = None
@@ -76,6 +88,24 @@ class TrackerEngine:
         if self.nvidia_tailer is None:
             self.nvidia_tailer = DynamicNvidiaLogTailer(hunt_detector.detect_nvidia_log, start_at_end=True)
 
+    def _save_recovery_snapshot(self, current_stats):
+        if not current_stats or not current_stats.get("match_id"):
+            return
+        duration = int(current_stats.get("duration", 0) or 0)
+        config_manager.save_recovery_state({
+            "match_id": current_stats.get("match_id"),
+            "map": current_stats.get("map"),
+            "game_mode": current_stats.get("game_mode"),
+            "server_ip": current_stats.get("server_ip"),
+            "log_id": current_stats.get("log_id"),
+            "was_dead": bool(current_stats.get("was_dead", False)),
+            "kills": int(current_stats.get("kills", 0)),
+            "deaths": int(current_stats.get("deaths", 0)),
+            "trades": int(current_stats.get("trades", 0)),
+            "duration_seconds": duration,
+            "start_time": time.time() - duration
+        })
+
     def _recover_interrupted_match_if_any(self):
         """Проверяет наличие аварийно прерванного матча после падения/закрытия программы."""
         saved = config_manager.load_recovery_state()
@@ -84,8 +114,19 @@ class TrackerEngine:
         kills = int(saved.get("kills", 0))
         deaths = int(saved.get("deaths", 0))
         match_id = saved.get("match_id")
+        start_time = float(saved.get("start_time", 0) or 0)
+        elapsed = (time.time() - start_time) if start_time > 0 else float("inf")
+        max_duration = getattr(self.state_machine, "MAX_MATCH_DURATION", 47 * 60)
+
+        if match_id and elapsed <= max_duration:
+            # Матч еще может продолжаться на сервере — переводим в ожидание реконнекта
+            self.state_machine.restore_pending_reconnect(saved)
+            return
+
         if (kills > 0 or deaths > 0) and match_id:
-            log.info(f"Обнаружен незавершенный матч после сбоя: {match_id} (K={kills}, D={deaths}). Отправка в базу...")
+            if not saved.get("duration_seconds"):
+                saved["duration_seconds"] = min(max_duration, max(0, int(elapsed)))
+            log.info(f"Обнаружен истекший незавершенный матч после сбоя: {match_id} (K={kills}, D={deaths}). Отправка в базу...")
             try:
                 self.network_sync.send_match_pulse(saved)
             except Exception as e:
@@ -127,17 +168,9 @@ class TrackerEngine:
 
     def _handle_session_start(self, map_name, match_id):
         log.info(f"Начало сессии матча: Карта '{map_name}', ID={match_id}")
-        # Сохраняем состояние начавшегося матча на случай аварии / вылета
-        config_manager.save_recovery_state({
-            "match_id": match_id,
-            "map": map_name,
-            "game_mode": self.state_machine.current_game_mode,
-            "kills": 0,
-            "deaths": 0,
-            "trades": 0,
-            "duration_seconds": 0,
-            "start_time": time.time()
-        })
+        # Сохраняем состояние начавшегося матча на случай аварии / вылета / сбоя света
+        stats = self.state_machine._get_match_stats()
+        self._save_recovery_snapshot(stats)
         try:
             self.network_sync.send_match_state_pulse("in_combat", 0, 0)
         except Exception:
@@ -149,7 +182,7 @@ class TrackerEngine:
                     "match_id": match_id,
                     "kills": 0,
                     "deaths": 0,
-                    "start_time": time.time()
+                    "start_time": time.time() - int(stats.get("duration", 0) or 0)
                 })
             except Exception:
                 pass
@@ -200,18 +233,36 @@ class TrackerEngine:
                 pass
 
     def _handle_combat_event(self, event_type, count, current_stats):
+        # Обновляем состояние на диске для надежного восстановления при краше или сбое света
+        self._save_recovery_snapshot(current_stats)
+
+        if event_type in ("reconnect_pause", "revive"):
+            return
+
+        if event_type == "reconnect":
+            log.info(f"Восстановление боевой сессии после реконнекта: {current_stats}")
+            try:
+                self.network_sync.send_match_state_pulse(
+                    "in_combat",
+                    current_stats.get("kills", 0),
+                    current_stats.get("deaths", 0)
+                )
+            except Exception:
+                pass
+            if self.on_session_change:
+                try:
+                    self.on_session_change(True, {
+                        "map": current_stats.get("map"),
+                        "match_id": current_stats.get("match_id"),
+                        "kills": current_stats.get("kills", 0),
+                        "deaths": current_stats.get("deaths", 0),
+                        "start_time": time.time() - current_stats.get("duration", 0)
+                    })
+                except Exception:
+                    pass
+            return
+
         log.info(f"Боевое событие: {event_type} x{count}. Текущий счет: {current_stats}")
-        # Обновляем состояние на диске для надежного восстановления при краше
-        config_manager.save_recovery_state({
-            "match_id": current_stats.get("match_id"),
-            "map": current_stats.get("map"),
-            "game_mode": current_stats.get("game_mode"),
-            "kills": current_stats.get("kills", 0),
-            "deaths": current_stats.get("deaths", 0),
-            "trades": current_stats.get("trades", 0),
-            "duration_seconds": current_stats.get("duration", 0),
-            "start_time": time.time() - current_stats.get("duration", 0)
-        })
         try:
             self.network_sync.send_match_state_pulse(
                 "in_combat",
@@ -223,7 +274,5 @@ class TrackerEngine:
         if self.on_combat_event:
             try:
                 self.on_combat_event(event_type, count, current_stats)
-            except Exception:
-                pass
             except Exception:
                 pass

@@ -5,26 +5,43 @@ class LogTailer:
     """
     Пассивный потокобезопасный читатель логов Windows (FileShare.ReadWrite).
     Не блокирует запись процесса игры или драйвера.
+    Поддерживает сверку 64-байтового хвоста для мгновенного определения перезапуска игры при крашах.
     """
     def __init__(self, filepath, start_at_end=True):
         self.filepath = filepath
         self.last_pos = 0
+        self.last_tail_bytes = b""
         if filepath and os.path.exists(filepath):
             if start_at_end:
                 try:
                     self.last_pos = os.path.getsize(filepath)
+                    self._update_tail_bytes()
                 except Exception:
                     self.last_pos = 0
 
     def set_filepath(self, filepath, start_at_end=True):
         self.filepath = filepath
         self.last_pos = 0
+        self.last_tail_bytes = b""
         if filepath and os.path.exists(filepath):
             if start_at_end:
                 try:
                     self.last_pos = os.path.getsize(filepath)
+                    self._update_tail_bytes()
                 except Exception:
                     self.last_pos = 0
+
+    def _update_tail_bytes(self):
+        if not self.filepath or not os.path.exists(self.filepath) or self.last_pos <= 0:
+            self.last_tail_bytes = b""
+            return
+        try:
+            check_len = min(64, self.last_pos)
+            with open(self.filepath, 'rb') as fb:
+                fb.seek(self.last_pos - check_len)
+                self.last_tail_bytes = fb.read(check_len)
+        except Exception:
+            self.last_tail_bytes = b""
 
     def read_new_lines(self):
         if not self.filepath or not os.path.exists(self.filepath):
@@ -35,9 +52,25 @@ class LogTailer:
         except Exception:
             return []
 
-        # Если файл был перезаписан или уменьшился в размере (перезапуск игры)
+        # 1. Если файл уменьшился в размере — игра перезапустилась, сбрасываем указатель
         if current_size < self.last_pos:
             self.last_pos = 0
+            self.last_tail_bytes = b""
+
+        # 2. Сверка 64-байтового хвоста: если размер тот же или больше, но байты по старому смещению не совпадают
+        elif self.last_pos > 0 and self.last_tail_bytes:
+            try:
+                check_len = len(self.last_tail_bytes)
+                if current_size >= self.last_pos:
+                    with open(self.filepath, 'rb') as fb:
+                        fb.seek(self.last_pos - check_len)
+                        actual_bytes = fb.read(check_len)
+                        if actual_bytes != self.last_tail_bytes:
+                            # Файл был перезаписан с нуля другим содержимым при перезапуске игры
+                            self.last_pos = 0
+                            self.last_tail_bytes = b""
+            except Exception:
+                pass
 
         if current_size == self.last_pos:
             return []
@@ -49,6 +82,7 @@ class LogTailer:
                 f.seek(self.last_pos)
                 new_lines = f.readlines()
                 self.last_pos = f.tell()
+            self._update_tail_bytes()
         except Exception:
             pass
 

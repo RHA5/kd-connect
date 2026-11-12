@@ -14,9 +14,9 @@ if not os.path.exists(APP_DATA_DIR):
     except Exception:
         pass
 
-# Настройка кольцевого буфера логов (до 3 МБ, 3 ротации)
+# Настройка кольцевого буфера логов (до 3 МБ, 3 ротации) с миллисекундами
 _formatter = logging.Formatter(
-    fmt='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
+    fmt='%(asctime)s.%(msecs)03d [%(levelname)s] [%(name)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
@@ -43,6 +43,16 @@ if not _root_logger.handlers:
             _root_logger.addHandler(console_handler)
         except Exception:
             pass
+
+
+def mask_token(token):
+    """Маскирует секретный токен для безопасного сохранения в логах (например tok_123***abcd)."""
+    if not token:
+        return "none"
+    token = str(token).strip()
+    if len(token) <= 8:
+        return "***"
+    return f"{token[:4]}...{token[-4:]}"
 
 
 def get_logger(name="KDConnect"):

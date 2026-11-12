@@ -5,7 +5,7 @@ import time
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.9.5-beta"
+APP_VERSION = "v0.9.12-beta"
 GITHUB_REPO = "RHA5/kd-connect"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
@@ -64,6 +64,53 @@ def _parse_username(data):
 
 
 class AppApi:
+    def __init__(self):
+        self.engine = None
+
+    def set_engine(self, engine):
+        self.engine = engine
+
+    def get_pending_matches(self):
+        try:
+            if not self.engine or not hasattr(self.engine, 'network_sync'):
+                return {"has_pending": False, "count": 0, "kills": 0, "deaths": 0}
+            matches = self.engine.network_sync.get_pending_matches()
+            if not matches:
+                return {"has_pending": False, "count": 0, "kills": 0, "deaths": 0}
+
+            count = len(matches)
+            kills = sum(int(m.get("kills", 0)) for m in matches)
+            deaths = sum(int(m.get("deaths", 0)) for m in matches)
+
+            # Вычисляем самое раннее время начала матча
+            earliest_start = min(
+                float(m.get("created_at", time.time())) - float(m.get("duration_seconds", 0))
+                for m in matches
+            )
+            import datetime
+            iso_start = datetime.datetime.fromtimestamp(earliest_start, datetime.timezone.utc).isoformat()
+
+            return {
+                "has_pending": True,
+                "count": count,
+                "kills": kills,
+                "deaths": deaths,
+                "earliest_start": earliest_start,
+                "retroactive_created_at": iso_start
+            }
+        except Exception as e:
+            log.error(f"[PENDING:ERR] {e}")
+            return {"has_pending": False, "count": 0, "kills": 0, "deaths": 0}
+
+    def clear_pending_matches(self):
+        try:
+            if self.engine and hasattr(self.engine, 'network_sync'):
+                self.engine.network_sync.clear_pending_matches()
+            return {"success": True}
+        except Exception as e:
+            log.error(f"[CLEAR:ERR] {e}")
+            return {"success": False, "error": str(e)}
+
     def minimize(self):
         if webview.windows:
             webview.windows[0].minimize()
@@ -187,16 +234,21 @@ class AppApi:
         except Exception:
             return {"success": False, "error": "Сервер недоступен (проверьте подключение)"}
 
-    def start_session(self, mood_rating=None):
+    def start_session(self, mood_rating=None, retroactive_created_at=None):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
+            log.warning("[SESSION:START_FAIL] Попытка старта сессии без sync_token")
             return {"success": False, "error": "Привяжите токен перед началом сессии"}
 
         api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
         payload = {"type": "session_start"}
         if mood_rating is not None:
             payload["mood_rating"] = mood_rating
+        if retroactive_created_at:
+            payload["created_at"] = retroactive_created_at
+        masked_tok = logger.mask_token(token)
+        log.info(f"[SESSION:START_REQ] Старт сессии в БД [tok={masked_tok}, mood={mood_rating}, retro={retroactive_created_at}]")
         try:
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
@@ -207,20 +259,28 @@ class AppApi:
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
+                if data.get("success"):
+                    log.info(f"[SESSION:START_OK] Сессия создана: ID={data.get('session_id')}, пользователь='{data.get('username')}', начальные K/D={data.get('base_kd')}")
+                else:
+                    log.warning(f"[SESSION:START_ERR] Ошибка создания: {data.get('error')}")
                 return data
         except urllib.error.HTTPError as e:
             try:
                 err = json.loads(e.read().decode('utf-8'))
-                return {"success": False, "error": err.get("error", f"Ошибка HTTP {e.code}")}
+                err_msg = err.get("error", f"Ошибка HTTP {e.code}")
             except Exception:
-                return {"success": False, "error": f"Ошибка сервера ({e.code})"}
+                err_msg = f"Ошибка сервера ({e.code})"
+            log.error(f"[SESSION:START_HTTP_ERR] {err_msg}")
+            return {"success": False, "error": err_msg}
         except Exception as ex:
+            log.error(f"[SESSION:START_CONN_ERR] {ex}")
             return {"success": False, "error": f"Сбой соединения: {ex}"}
 
     def end_session(self, adjusted_kills=None, adjusted_deaths=None):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
+            log.warning("[SESSION:END_FAIL] Попытка завершения сессии без sync_token")
             return {"success": False, "error": "Токен не найден"}
 
         api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
@@ -229,7 +289,12 @@ class AppApi:
             payload["adjusted_kills"] = adjusted_kills
         if adjusted_deaths is not None:
             payload["adjusted_deaths"] = adjusted_deaths
+        masked_tok = logger.mask_token(token)
+        log.info(f"[SESSION:END_REQ] Завершение сессии [tok={masked_tok}, adjK={adjusted_kills}, adjD={adjusted_deaths}]")
         try:
+            # Очищаем буфер очереди, чтобы старые события гарантированно не перетекли в следующую сессию
+            self.clear_pending_matches()
+
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
                 api_url,
@@ -239,14 +304,21 @@ class AppApi:
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
+                if data.get("success"):
+                    log.info(f"[SESSION:END_OK] Сессия завершена: ID={data.get('session_id')}, матчей={data.get('matches_count')}, киллов={data.get('kills')}, смертей={data.get('deaths')}, итоговые в лобби={data.get('total_kills')}/{data.get('total_deaths')}")
+                else:
+                    log.warning(f"[SESSION:END_ERR] Ошибка завершения: {data.get('error')}")
                 return data
         except urllib.error.HTTPError as e:
             try:
                 err = json.loads(e.read().decode('utf-8'))
-                return {"success": False, "error": err.get("error", f"Ошибка HTTP {e.code}")}
+                err_msg = err.get("error", f"Ошибка HTTP {e.code}")
             except Exception:
-                return {"success": False, "error": f"Ошибка сервера ({e.code})"}
+                err_msg = f"Ошибка сервера ({e.code})"
+            log.error(f"[SESSION:END_HTTP_ERR] {err_msg}")
+            return {"success": False, "error": err_msg}
         except Exception as ex:
+            log.error(f"[SESSION:END_CONN_ERR] {ex}")
             return {"success": False, "error": f"Сбой соединения: {ex}"}
 
     def check_active_session(self):
@@ -500,6 +572,7 @@ if __name__ == '__main__':
             on_session_change=on_session_change,
             on_combat_event=on_combat_event
         )
+        api.set_engine(engine)
         engine.start()
 
         webview.start(debug=False, icon=icon_path if os.path.exists(icon_path) else None)
