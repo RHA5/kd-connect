@@ -303,7 +303,7 @@
     <!-- 2. МАСТЕР ПЕРВИЧНОЙ НАСТРОЙКИ (3 ШАГА) -->
     <div id="section-wizard" class="hidden flex-1 flex flex-col justify-between">
       <div class="flex items-center justify-between pb-2 border-b border-zinc-850">
-        <span id="wiz-step-indicator" class="text-xs font-mono text-zinc-400 uppercase">ШАГ 1 ИЗ 3</span>
+        <span id="wiz-step-indicator" class="text-sm font-mono font-bold text-zinc-300 uppercase">ШАГ 1 ИЗ 3</span>
         <div class="flex gap-1.5" id="wiz-dots">
           <div class="w-2 h-2 rounded-full bg-white" id="wiz-dot-1"></div>
           <div class="w-2 h-2 rounded-full bg-zinc-700" id="wiz-dot-2"></div>
@@ -314,35 +314,35 @@
       <div id="wiz-step-1" class="hidden flex-1 flex flex-col justify-between pt-2">
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-xs font-bold text-white uppercase tracking-wide font-mono">1. Оверлей NVIDIA</h2>
-            <span id="wiz-nv-badge" class="text-xs font-mono font-bold text-zinc-500">ПРОВЕРКА...</span>
+            <h2 class="text-sm font-bold text-white uppercase tracking-wide font-mono">1. Оверлей NVIDIA</h2>
+            <span id="wiz-nv-badge" class="text-sm font-mono font-bold text-zinc-500">ПРОВЕРКА...</span>
           </div>
           <!-- Вариант А: Оверлей найден -->
-          <div id="wiz-nv-ok-box" class="hidden p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-xs">
+          <div id="wiz-nv-ok-box" class="hidden p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-sm">
             <div class="flex items-center gap-2 text-emerald-400 font-bold">
               <span>●</span>
               <span>Оверлей активен и готов к работе</span>
             </div>
-            <p class="text-zinc-300 leading-relaxed text-xs">
+            <p class="text-zinc-300 leading-relaxed text-sm">
               Оверлей активен, лог хайлайтов найден. Дополнительных настроек не требуется, можете переходить к следующему шагу.
             </p>
           </div>
           <!-- Вариант Б: Оверлей не найден -->
-          <div id="wiz-nv-fail-box" class="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-xs">
-            <div id="wiz-nv-fail-msg" class="text-rose-400 font-bold text-xs pb-1 border-b border-zinc-800">
+          <div id="wiz-nv-fail-box" class="p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-sm">
+            <div id="wiz-nv-fail-msg" class="text-rose-400 font-bold text-sm pb-1 border-b border-zinc-800">
               Внутриигровой оверлей выключен или не установлен
             </div>
-            <p class="text-zinc-300 font-medium text-xs leading-snug">
+            <p class="text-zinc-300 font-medium text-sm leading-snug">
               Для автоматической фиксации убийств требуется включенный оверлей:
             </p>
-            <ul class="text-xs text-zinc-400 space-y-1.5 list-disc list-inside">
-              <li><b class="text-zinc-200">NVIDIA App:</b> <i>Настройки (слева) → Функции → Оверлей NVIDIA (Вкл)</i></li>
-              <li><b class="text-zinc-200">GeForce Experience:</b> <i>Настройки (вверху) → Общие → Внутриигровой оверлей (Вкл)</i></li>
-              <li>Если у вас нет этих программ — скачайте <a href="#" onclick="openExternalUrl('https://www.nvidia.com/ru-ru/software/nvidia-app/')" class="text-white underline hover:text-zinc-300">NVIDIA App</a> (или <a href="#" onclick="openExternalUrl('https://www.nvidia.com/ru-ru/geforce/geforce-experience/')" class="text-white underline hover:text-zinc-300">GeForce Experience</a> для старых видеокарт).</li>
+            <ul class="text-sm text-zinc-300 space-y-2 list-disc list-inside">
+              <li><b class="text-white">NVIDIA App:</b> <i>Настройки (слева) → Функции → Оверлей NVIDIA (Вкл)</i></li>
+              <li><b class="text-white">GeForce Experience:</b> <i>Настройки (вверху) → Общие → Внутриигровой оверлей (Вкл)</i></li>
+              <li>Если у вас нет этих программ — скачайте <a href="#" onclick="openExternalUrl('https://www.nvidia.com/ru-ru/software/nvidia-app/')" class="text-white underline hover:text-zinc-300">NVIDIA App</a> (или <a href="#" onclick="openExternalUrl('https://www.nvidia.com/ru-ru/geforce/geforce-experience/')" class="text-white underline hover:text-zinc-300">GeForce Experience</a>).</li>
             </ul>
-            <div class="pt-1.5 border-t border-zinc-800 text-[11px] text-zinc-400 space-y-1">
+            <div class="pt-2 border-t border-zinc-800 text-xs text-zinc-400 space-y-1">
               <span class="font-bold text-zinc-300 block">Что делать:</span>
-              <div>1. Включите оверлей и проверьте вызов меню клавишами <kbd class="px-1 bg-zinc-800 border border-zinc-700 rounded font-mono text-[10px]">Alt + Z</kbd>.</div>
+              <div>1. Включите оверлей и проверьте вызов меню клавишами <kbd class="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded font-mono text-xs">Alt + Z</kbd>.</div>
               <div>2. Запустите Hunt: Showdown до главного меню (игра создаст файл лога).</div>
               <div>3. Вернитесь в окно KD Connect и нажмите «Проверить снова».</div>
             </div>
@@ -350,15 +350,15 @@
         </div>
         <div class="pt-3 border-t border-zinc-850 space-y-2">
           <div id="wiz-nv-btns-fail" class="grid grid-cols-2 gap-2">
-            <button onclick="checkSystemsReal()" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer">
+            <button onclick="checkSystemsReal()" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-sm uppercase tracking-wider transition-all cursor-pointer">
               Проверить снова
             </button>
-            <button disabled class="py-3 bg-zinc-800 text-zinc-600 font-bold rounded-xl text-xs uppercase tracking-wider cursor-not-allowed opacity-50">
+            <button disabled class="py-3 bg-zinc-800 text-zinc-600 font-bold rounded-xl text-sm uppercase tracking-wider cursor-not-allowed opacity-50">
               ДАЛЕЕ →
             </button>
           </div>
           <div id="wiz-nv-btns-ok" class="hidden">
-            <button onclick="goToWizardStep(2)" class="w-full py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
+            <button onclick="goToWizardStep(2)" class="w-full py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-sm uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
               ДАЛЕЕ →
             </button>
           </div>
@@ -368,40 +368,40 @@
       <div id="wiz-step-2" class="hidden flex-1 flex flex-col justify-between pt-2">
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-xs font-bold text-white uppercase tracking-wide font-mono">2. Логи игры Hunt 1896</h2>
-            <span id="wiz-game-badge" class="text-xs font-mono font-bold text-zinc-500">ПРОВЕРКА...</span>
+            <h2 class="text-sm font-bold text-white uppercase tracking-wide font-mono">2. Логи игры Hunt 1896</h2>
+            <span id="wiz-game-badge" class="text-sm font-mono font-bold text-zinc-500">ПРОВЕРКА...</span>
           </div>
           <!-- Сценарий 1: Найдено и лог есть -->
-          <div id="wiz-game-ok-box" class="hidden p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-xs">
+          <div id="wiz-game-ok-box" class="hidden p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-sm">
             <div class="flex items-center gap-2 text-emerald-400 font-bold">
               <span>●</span>
               <span>Папка игры и файл логов найдены</span>
             </div>
-            <p class="text-zinc-300 text-xs leading-relaxed">
+            <p class="text-zinc-300 text-sm leading-relaxed">
               Папка игры и файл логов определены автоматически. Дополнительных действий не требуется.
             </p>
-            <div id="wiz-game-ok-path" class="p-2 rounded bg-zinc-950 border border-zinc-800/80 font-mono text-[11px] text-zinc-400 break-all select-text"></div>
+            <div id="wiz-game-ok-path" class="p-2.5 rounded bg-zinc-950 border border-zinc-800/80 font-mono text-xs text-zinc-300 break-all select-text"></div>
           </div>
           <!-- Сценарий 2: Папка есть, но логов нет -->
-          <div id="wiz-game-missinglog-box" class="hidden p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-xs">
-            <p class="text-amber-400 font-bold text-xs">
+          <div id="wiz-game-missinglog-box" class="hidden p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-sm">
+            <p class="text-amber-400 font-bold text-sm">
               Папка обнаружена, но файл логов пока отсутствует
             </p>
-            <p class="text-zinc-300 text-xs leading-relaxed">
+            <p class="text-zinc-300 text-sm leading-relaxed">
               Игра создает файл логов при первом запуске.
             </p>
-            <div class="pt-1.5 border-t border-zinc-800 text-[11px] text-zinc-400 space-y-1">
+            <div class="pt-2 border-t border-zinc-800 text-xs text-zinc-400 space-y-1">
               <span class="font-bold text-zinc-300 block">Что делать:</span>
               <div>1. Запустите Hunt: Showdown один раз до главного меню.</div>
               <div>2. Вернитесь в KD Connect и нажмите кнопку ниже.</div>
             </div>
           </div>
           <!-- Сценарий 3: Папка игры не найдена в Steam -->
-          <div id="wiz-game-notfound-box" class="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-xs">
-            <p class="text-rose-400 font-bold text-xs">
+          <div id="wiz-game-notfound-box" class="p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-sm">
+            <p class="text-rose-400 font-bold text-sm">
               Не удалось автоматически найти установленную игру в Steam
             </p>
-            <div class="pt-1.5 border-t border-zinc-800 text-[11px] text-zinc-400 space-y-1">
+            <div class="pt-2 border-t border-zinc-800 text-xs text-zinc-400 space-y-1">
               <span class="font-bold text-zinc-300 block">Что делать:</span>
               <div>Нажмите кнопку ниже и укажите папку игры (где находится файл <code class="text-zinc-200">Hunt.exe</code>).</div>
             </div>
@@ -410,22 +410,22 @@
         <div class="pt-3 border-t border-zinc-850 space-y-2">
           <!-- Кнопки сценария 1 (ОК) -->
           <div id="wiz-game-btns-ok" class="hidden">
-            <button onclick="goToWizardStep(3)" class="w-full py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
+            <button onclick="goToWizardStep(3)" class="w-full py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-sm uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
               ДАЛЕЕ →
             </button>
           </div>
           <!-- Кнопки сценария 2 (Лога нет) -->
           <div id="wiz-game-btns-missinglog" class="hidden">
-            <button onclick="checkSystemsReal()" class="w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer">
+            <button onclick="checkSystemsReal()" class="w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-sm uppercase tracking-wider transition-all cursor-pointer">
               Проверить снова
             </button>
           </div>
           <!-- Кнопки сценария 3 (Не найдено) -->
           <div id="wiz-game-btns-notfound" class="grid grid-cols-2 gap-2">
-            <button onclick="handleSelectFolder()" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer truncate">
+            <button onclick="handleSelectFolder()" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-sm uppercase tracking-wider transition-all cursor-pointer truncate">
               Выбрать папку
             </button>
-            <button onclick="checkSystemsReal()" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer truncate">
+            <button onclick="checkSystemsReal()" class="py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-sm uppercase tracking-wider transition-all cursor-pointer truncate">
               Проверить снова
             </button>
           </div>
@@ -435,41 +435,41 @@
       <div id="wiz-step-3" class="hidden flex-1 flex flex-col justify-between pt-2">
         <div class="space-y-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-xs font-bold text-white uppercase tracking-wide font-mono">3. Привязка профиля</h2>
-            <span id="wiz-profile-badge" class="text-xs font-mono font-bold text-zinc-500">ТРЕБУЕТСЯ</span>
+            <h2 class="text-sm font-bold text-white uppercase tracking-wide font-mono">3. Привязка профиля</h2>
+            <span id="wiz-profile-badge" class="text-sm font-mono font-bold text-zinc-500">ТРЕБУЕТСЯ</span>
           </div>
-          <div class="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-1.5 text-xs text-zinc-300">
+          <div class="p-3.5 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-2 text-sm text-zinc-300">
             <div class="font-bold text-zinc-200">Инструкция:</div>
-            <ol class="list-decimal list-inside space-y-1 text-xs text-zinc-400">
+            <ol class="list-decimal list-inside space-y-1.5 text-sm text-zinc-300">
               <li>Откройте <a href="#" onclick="openExternalUrl(getWebsiteUrl('/settings'))" class="text-white underline hover:text-zinc-300">Настройки профиля</a> на сайте.</li>
               <li>В блоке <b>KD Connect</b> нажмите «Скопировать токен».</li>
-              <li>Вставьте токен в поле ниже и нажмите «Связать профиль».</li>
+              <li>Вставьте токен в поле ниже (клик правой кнопкой → «Вставить» или Ctrl+V) и нажмите «Связать».</li>
             </ol>
           </div>
           <div class="space-y-2">
             <div class="flex gap-2">
-              <input id="wiz-input-token" type="password" placeholder="kdm_live_..." class="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 select-text">
-              <button id="btn-wiz-link" onclick="handleWizLinkToken()" class="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap">
+              <input id="wiz-input-token" type="password" placeholder="kdm_live_..." class="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm font-mono text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 select-text">
+              <button id="btn-wiz-link" onclick="handleWizLinkToken()" class="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-bold rounded-xl text-sm uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap">
                 Связать
               </button>
             </div>
             <!-- Ошибка -->
-            <div id="wiz-token-error" class="hidden text-xs text-rose-400 font-medium px-1">
+            <div id="wiz-token-error" class="hidden text-sm text-rose-400 font-medium px-1">
               Неверный токен или закрыт доступ
             </div>
             <!-- Подтверждение привязки -->
-            <div id="wiz-token-ok-card" class="hidden p-3 bg-zinc-900/90 border border-emerald-500/40 rounded-xl flex items-center justify-between">
-              <div class="flex items-center gap-2 text-xs">
+            <div id="wiz-token-ok-card" class="hidden p-3.5 bg-zinc-900/90 border border-emerald-500/40 rounded-xl flex items-center justify-between">
+              <div class="flex items-center gap-2 text-sm">
                 <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                 <span class="text-zinc-400">Профиль привязан:</span>
                 <span id="wiz-token-username" class="font-bold text-white font-mono"></span>
               </div>
-              <span class="text-[10px] font-mono font-bold text-emerald-400 uppercase">ГОТОВО</span>
+              <span class="text-xs font-mono font-bold text-emerald-400 uppercase">ГОТОВО</span>
             </div>
           </div>
         </div>
         <div class="pt-3 border-t border-zinc-850">
-          <button id="btn-finish-onboarding" onclick="finishOnboarding()" disabled class="w-full py-3 bg-zinc-800 text-zinc-600 font-black rounded-xl text-xs uppercase tracking-wider transition-all cursor-not-allowed opacity-50">
+          <button id="btn-finish-onboarding" onclick="finishOnboarding()" disabled class="w-full py-3.5 bg-zinc-800 text-zinc-600 font-black rounded-xl text-sm uppercase tracking-wider transition-all cursor-not-allowed opacity-50">
             ЗАВЕРШИТЬ НАСТРОЙКУ →
           </button>
         </div>
@@ -480,20 +480,20 @@
       <div class="space-y-3 pt-1 flex-1 overflow-y-auto custom-scroll pr-1">
         <!-- Карточка привязанного профиля -->
         <div class="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-850 space-y-0.5 shrink-0">
-          <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">Привязанный профиль</span>
-          <span id="idle-username" class="text-base font-bold text-white font-mono block">R_H_A</span>
+          <span class="text-xs font-mono text-zinc-400 uppercase tracking-wider block">Привязанный профиль</span>
+          <span id="idle-username" class="text-lg font-bold text-white font-mono block">R_H_A</span>
         </div>
 
         <!-- Предупреждение об ошибке папки игры Hunt / логов (скрыто по умолчанию) -->
-        <div id="idle-game-error-box" class="hidden p-3 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-xs">
+        <div id="idle-game-error-box" class="hidden p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-sm">
           <div class="flex items-center gap-2 text-rose-400 font-bold">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span id="idle-game-error-title">Папка игры Hunt не найдена</span>
+            <span id="idle-game-error-title" class="text-sm font-bold">Папка игры Hunt не найдена</span>
           </div>
-          <p id="idle-game-error-msg" class="text-zinc-300 leading-relaxed text-[11px]">
+          <p id="idle-game-error-msg" class="text-zinc-300 leading-relaxed text-xs">
             Не удалось обнаружить установленную игру Hunt: Showdown в библиотеках Steam.
           </p>
-          <div id="idle-game-error-instructions" class="pt-1.5 border-t border-rose-900/60 text-[11px] text-zinc-400 space-y-1">
+          <div id="idle-game-error-instructions" class="pt-1.5 border-t border-rose-900/60 text-xs text-zinc-400 space-y-1">
             <span class="font-bold text-zinc-300 block">Что делать:</span>
             <div>1. Убедитесь, что Hunt: Showdown 1896 установлен в Steam.</div>
             <div>2. Укажите папку игры вручную (где лежит <b>Hunt.exe</b>).</div>
@@ -510,15 +510,15 @@
         </div>
 
         <!-- Предупреждение об ошибке NVIDIA оверлея (скрыто по умолчанию) -->
-        <div id="idle-nv-error-box" class="hidden p-3 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-xs">
+        <div id="idle-nv-error-box" class="hidden p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800/60 space-y-2 text-sm">
           <div class="flex items-center gap-2 text-rose-400 font-bold">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span id="idle-nv-error-title">Оверлей NVIDIA выключен</span>
+            <span id="idle-nv-error-title" class="text-sm font-bold">Оверлей NVIDIA выключен</span>
           </div>
-          <p id="idle-nv-error-msg" class="text-zinc-300 leading-relaxed text-[11px]">
+          <p id="idle-nv-error-msg" class="text-zinc-300 leading-relaxed text-xs">
             Внутриигровой оверлей выключен или не установлен. Без него автоматическая фиксация убийств не работает.
           </p>
-          <div id="idle-nv-error-instructions" class="pt-1.5 border-t border-rose-900/60 text-[11px] text-zinc-400 space-y-1">
+          <div id="idle-nv-error-instructions" class="pt-1.5 border-t border-rose-900/60 text-xs text-zinc-400 space-y-1">
             <span class="font-bold text-zinc-300 block">Как включить:</span>
             <div>1. <b>NVIDIA App:</b> <i>Настройки → Функции → Оверлей NVIDIA (Вкл)</i></div>
             <div>2. <b>GeForce Experience:</b> <i>Настройки → Общие → Внутриигровой оверлей (Вкл)</i></div>
@@ -529,12 +529,12 @@
         </div>
 
         <!-- Предупреждение о конфликте ручной сессии (скрыто по умолчанию) -->
-        <div id="idle-manual-conflict-box" class="hidden p-3 rounded-2xl bg-amber-950/40 border border-amber-800/60 space-y-2 text-xs">
+        <div id="idle-manual-conflict-box" class="hidden p-3.5 rounded-2xl bg-amber-950/40 border border-amber-800/60 space-y-2 text-sm">
           <div class="flex items-center gap-2 text-amber-400 font-bold">
             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span>На сайте активна ручная сессия</span>
+            <span class="text-sm font-bold">На сайте активна ручная сессия</span>
           </div>
-          <p class="text-zinc-300 leading-relaxed text-[11px]">
+          <p class="text-zinc-300 leading-relaxed text-xs">
             Автоматический трекинг заблокирован для защиты от двойного учета. Завершите текущую сессию на сайте, чтобы запустить автоматический сбор.
           </p>
           <button onclick="handleEndSessionWebsite()" class="text-xs text-amber-300 hover:text-amber-200 underline font-mono flex items-center gap-1 cursor-pointer">
@@ -543,13 +543,13 @@
         </div>
 
         <!-- Текст-описание (показывается, когда нет конфликта и нет ошибок) -->
-        <div id="idle-desc-box" class="p-3.5 rounded-2xl bg-zinc-900/40 border border-zinc-850/60 text-xs text-zinc-400 leading-relaxed">
+        <div id="idle-desc-box" class="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-850/60 text-sm text-zinc-300 leading-relaxed">
           Игровая статистика будет фиксироваться в фоне без необходимости открывать сайт и вводить данные вручную.
         </div>
       </div>
       <!-- Главная кнопка старта сессии -->
       <div class="pt-3 shrink-0">
-        <button id="btn-start-session" onclick="handleStartSession()" class="w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-black rounded-2xl text-xs uppercase tracking-wider shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
+        <button id="btn-start-session" onclick="handleStartSession()" class="w-full py-4 bg-white hover:bg-zinc-200 text-black font-black rounded-2xl text-sm uppercase tracking-wider shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer">
           <svg class="w-4 h-4 fill-black" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           <span>НАЧАТЬ СЕССИЮ</span>
         </button>
@@ -562,54 +562,54 @@
         <div class="flex items-center justify-between pb-2 border-b border-zinc-850">
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-            <span class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">СЕССИЯ АКТИВНА</span>
+            <span class="text-sm font-mono font-bold text-emerald-400 uppercase tracking-wider">СЕССИЯ АКТИВНА</span>
           </div>
-          <span id="session-timer-text" class="text-base font-mono font-bold text-white tabular-nums tracking-wider">00:00:00</span>
+          <span id="session-timer-text" class="text-lg font-mono font-bold text-white tabular-nums tracking-wider">00:00:00</span>
         </div>
         <!-- 5 карточек текущей сессии -->
         <div class="grid grid-cols-3 gap-2 text-center">
           <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <div class="text-[10px] text-zinc-500 font-mono uppercase">МАТЧЕЙ</div>
-            <div id="stat-session-matches" class="text-base font-mono font-bold text-white mt-0.5">0</div>
+            <div class="text-xs text-zinc-400 font-mono uppercase">МАТЧЕЙ</div>
+            <div id="stat-session-matches" class="text-lg font-mono font-bold text-white mt-0.5">0</div>
           </div>
           <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <div class="text-[10px] text-zinc-500 font-mono uppercase">КИЛЛОВ</div>
-            <div id="stat-session-kills" class="text-base font-mono font-bold text-white mt-0.5">0</div>
+            <div class="text-xs text-zinc-400 font-mono uppercase">КИЛЛОВ</div>
+            <div id="stat-session-kills" class="text-lg font-mono font-bold text-white mt-0.5">0</div>
           </div>
           <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <div class="text-[10px] text-zinc-500 font-mono uppercase">СМЕРТЕЙ</div>
-            <div id="stat-session-deaths" class="text-base font-mono font-bold text-white mt-0.5">0</div>
+            <div class="text-xs text-zinc-400 font-mono uppercase">СМЕРТЕЙ</div>
+            <div id="stat-session-deaths" class="text-lg font-mono font-bold text-white mt-0.5">0</div>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2 text-center">
           <div class="p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <div class="text-[10px] text-zinc-500 font-mono uppercase">KD СЕГОДНЯ</div>
-            <div id="stat-session-kd" class="text-base font-mono font-bold text-white mt-0.5">0.00</div>
+            <div class="text-xs text-zinc-400 font-mono uppercase">KD СЕГОДНЯ</div>
+            <div id="stat-session-kd" class="text-lg font-mono font-bold text-white mt-0.5">0.00</div>
           </div>
           <div class="p-2 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <div class="text-[10px] text-zinc-500 font-mono uppercase">ПРИРОСТ KD</div>
-            <div id="stat-kd-growth" class="text-base font-mono font-bold text-emerald-400 mt-0.5">+0.00</div>
+            <div class="text-xs text-zinc-400 font-mono uppercase">ПРИРОСТ KD</div>
+            <div id="stat-kd-growth" class="text-lg font-mono font-bold text-emerald-400 mt-0.5">+0.00</div>
           </div>
         </div>
         <!-- Карточка статуса матча (в лобби / в игре) -->
-        <div id="match-status-card" class="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-1 text-xs">
+        <div id="match-status-card" class="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 space-y-1 text-sm">
           <div class="flex items-center justify-between">
-            <span id="match-card-title" class="font-mono font-bold text-zinc-200 uppercase tracking-wider text-xs">В ЛОББИ</span>
-            <span id="match-card-time" class="font-mono text-xs text-zinc-500">--:--</span>
+            <span id="match-card-title" class="font-mono font-bold text-zinc-200 uppercase tracking-wider text-sm">В ЛОББИ</span>
+            <span id="match-card-time" class="font-mono text-sm text-zinc-400">--:--</span>
           </div>
           <div id="match-card-desc" class="text-xs text-zinc-400 font-mono">
             Ожидание старта следующего матча
           </div>
         </div>
         <!-- Кнопка перехода к аналитике/дашборду на сайте -->
-        <button onclick="handleOpenDashboard()" class="w-full py-2.5 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white font-mono rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
-          <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+        <button onclick="handleOpenDashboard()" class="w-full py-3 bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white font-mono rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
           <span>Открыть статистику на сайте ↗</span>
         </button>
       </div>
       <!-- Завершение сессии -->
       <div class="pt-2 border-t border-zinc-850">
-        <button id="btn-end-session" onclick="handleShowVerification()" class="w-full py-3.5 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+        <button id="btn-end-session" onclick="handleShowVerification()" class="w-full py-4 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-rose-300 hover:text-white font-bold rounded-xl text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
           <span>ЗАВЕРШИТЬ СЕССИЮ</span>
         </button>
       </div>
@@ -714,60 +714,60 @@
             <span>Назад</span>
           </button>
           <span class="text-zinc-700 font-mono">/</span>
-          <span class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-300">Настройки</span>
+          <span class="text-sm font-bold uppercase tracking-wider font-mono text-zinc-300">Настройки</span>
         </div>
-        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.10.0</span></span>
+        <span class="text-xs text-zinc-400 font-mono"><span id="app-version-label">v0.10.1</span></span>
       </div>
-      <div class="flex-1 p-4 space-y-3 overflow-y-auto custom-scroll text-xs">
+      <div class="flex-1 p-4 space-y-3.5 overflow-y-auto custom-scroll text-sm">
         <!-- Статус 1: NVIDIA -->
-        <div class="p-3 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-1">
+        <div class="p-3.5 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-1">
           <div class="flex items-center justify-between">
-            <span class="font-medium text-zinc-200">Логи NVIDIA</span>
-            <span id="nv-badge" class="font-mono font-bold text-zinc-400 text-xs">...</span>
+            <span class="font-medium text-zinc-200 text-sm">Логи NVIDIA</span>
+            <span id="nv-badge" class="font-mono font-bold text-zinc-400 text-sm">...</span>
           </div>
-          <div id="nv-path-desc" class="text-[11px] text-zinc-500 font-mono truncate">Проверка...</div>
+          <div id="nv-path-desc" class="text-xs text-zinc-400 font-mono truncate">Проверка...</div>
         </div>
         <!-- Статус 2: Hunt Game -->
-        <div class="p-3 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-2">
+        <div class="p-3.5 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-2">
           <div class="flex items-center justify-between">
-            <span class="font-medium text-zinc-200">Папка игры Hunt</span>
-            <span id="game-badge" class="font-mono font-bold text-zinc-400 text-xs">...</span>
+            <span class="font-medium text-zinc-200 text-sm">Папка игры Hunt</span>
+            <span id="game-badge" class="font-mono font-bold text-zinc-400 text-sm">...</span>
           </div>
-          <div id="game-path-desc" class="text-[11px] text-zinc-500 font-mono truncate">Проверка...</div>
-          <div class="pt-1 flex items-center gap-2 border-t border-zinc-850/80">
-            <button onclick="handleSelectFolder()" class="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5">
+          <div id="game-path-desc" class="text-xs text-zinc-400 font-mono truncate">Проверка...</div>
+          <div class="pt-1.5 flex items-center gap-2 border-t border-zinc-850/80">
+            <button onclick="handleSelectFolder()" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5">
               <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
               <span>Указать папку</span>
             </button>
-            <button id="btn-reset-folder" onclick="handleResetFolder()" class="hidden px-2.5 py-1 text-zinc-500 hover:text-zinc-300 text-xs font-mono transition-colors cursor-pointer">
+            <button id="btn-reset-folder" onclick="handleResetFolder()" class="hidden px-2.5 py-1.5 text-zinc-400 hover:text-zinc-200 text-xs font-mono transition-colors cursor-pointer">
               <span>Сбросить автопоиск ↻</span>
             </button>
           </div>
         </div>
         <!-- Статус 3: Токен и Профиль -->
-        <div class="p-3 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-1">
+        <div class="p-3.5 bg-zinc-900/70 border border-zinc-850 rounded-xl space-y-1">
           <div class="flex items-center justify-between">
-            <span class="font-medium text-zinc-200">Профиль KD Metrika</span>
-            <span id="token-badge" class="font-mono font-bold text-zinc-400 text-xs">...</span>
+            <span class="font-medium text-zinc-200 text-sm">Профиль KD Metrika</span>
+            <span id="token-badge" class="font-mono font-bold text-zinc-400 text-sm">...</span>
           </div>
-          <div id="token-status-msg" class="text-[11px] text-zinc-500 font-mono">Проверка...</div>
+          <div id="token-status-msg" class="text-xs text-zinc-400 font-mono">Проверка...</div>
         </div>
         <!-- Кнопка повторить слайдер правил -->
         <div class="pt-1">
-          <button onclick="openDisclaimerSliderFromSettings()" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer">
+          <button onclick="openDisclaimerSliderFromSettings()" class="w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white font-bold rounded-xl text-sm uppercase tracking-wider transition-colors cursor-pointer">
             Особенности работы трекера
           </button>
         </div>
         <!-- Кнопка пройти настройку заново -->
         <div class="pt-1">
-          <button onclick="restartWizard()" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer">
+          <button onclick="restartWizard()" class="w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white font-bold rounded-xl text-sm uppercase tracking-wider transition-colors cursor-pointer">
             Пройти настройку заново
           </button>
         </div>
         <!-- Экспорт лога -->
         <div class="pt-1">
-          <button id="btn-save-log" onclick="handleSaveLog()" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          <button id="btn-save-log" onclick="handleSaveLog()" class="w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+            <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             <span>Сохранить лог на Рабочий стол</span>
           </button>
         </div>
@@ -850,6 +850,13 @@
           </button>
         </div>
       </div>
+    </div>
+    <!-- КОНТЕКСТНОЕ МЕНЮ ДЛЯ ВСТАВКИ ИЗ БУФЕРА -->
+    <div id="custom-context-menu" class="hidden fixed z-[9999] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-1 min-w-[130px]">
+      <button id="ctx-paste-btn" type="button" class="w-full text-left px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex items-center justify-between text-xs text-zinc-200 font-mono cursor-pointer">
+        <span>Вставить</span>
+        <span class="text-[10px] text-zinc-500 font-sans">Ctrl+V</span>
+      </button>
     </div>
   </main>
   </div><!-- /#app-shell -->
@@ -1870,8 +1877,59 @@ ${res.path}`);
       }, 300);
     });
 
+    // Контекстное меню для вставки в текстовые поля
+    let activeContextTarget = null;
+    document.addEventListener('contextmenu', (e) => {
+      const target = e.target.closest('input[type="text"], input[type="password"], textarea');
+      const menu = document.getElementById('custom-context-menu');
+      if (!menu) return;
+      if (target) {
+        e.preventDefault();
+        activeContextTarget = target;
+        const x = Math.min(e.clientX, window.innerWidth - 140);
+        const y = Math.min(e.clientY, window.innerHeight - 50);
+        menu.style.left = `${Math.max(8, x)}px`;
+        menu.style.top = `${Math.max(8, y)}px`;
+        menu.classList.remove('hidden');
+      } else {
+        menu.classList.add('hidden');
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('custom-context-menu');
+      if (menu && !menu.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('ctx-paste-btn')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const menu = document.getElementById('custom-context-menu');
+      if (menu) menu.classList.add('hidden');
+      if (!activeContextTarget) return;
+      let text = '';
+      try {
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.get_clipboard_text) {
+          text = await window.pywebview.api.get_clipboard_text();
+        }
+      } catch(err) {}
+      if (!text && navigator.clipboard && navigator.clipboard.readText) {
+        try { text = await navigator.clipboard.readText(); } catch(err) {}
+      }
+      if (text) {
+        activeContextTarget.value = text.trim();
+        activeContextTarget.dispatchEvent(new Event('input', { bubbles: true }));
+        activeContextTarget.dispatchEvent(new Event('change', { bubbles: true }));
+        activeContextTarget.focus();
+      }
+    });
+
     window.addEventListener('pywebviewready', async () => {
       document.body.classList.add('in-pywebview');
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.show_window) {
+        try { await window.pywebview.api.show_window(); } catch(e) {}
+      }
       if (!window.pywebview || !window.pywebview.api) {
         scheduleSplashHide(3000);
         return;

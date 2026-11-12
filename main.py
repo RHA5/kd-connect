@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.10.0"
+APP_VERSION = "v0.10.1"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -107,12 +107,68 @@ def _is_newer_version(candidate, current):
     return parsed_candidate > parsed_current
 
 
+def _enable_taskbar_minimize(title="KD Connect"):
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+        hwnd = user32.FindWindowW(None, title)
+        if hwnd:
+            GWL_STYLE = -16
+            WS_MINIMIZEBOX = 0x00020000
+            WS_SYSMENU = 0x00080000
+            current_style = user32.GetWindowLongW(hwnd, GWL_STYLE)
+            user32.SetWindowLongW(hwnd, GWL_STYLE, current_style | WS_MINIMIZEBOX | WS_SYSMENU)
+    except Exception:
+        pass
+
+
 class AppApi:
     def __init__(self):
         self.engine = None
 
     def set_engine(self, engine):
         self.engine = engine
+
+    def show_window(self):
+        if webview.windows:
+            win = webview.windows[0]
+            win.show()
+            _enable_taskbar_minimize("KD Connect")
+        return True
+
+    def get_clipboard_text(self):
+        if sys.platform != 'win32':
+            return ""
+        try:
+            import ctypes
+            from ctypes import wintypes
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            user32.OpenClipboard.argtypes = [wintypes.HWND]
+            user32.OpenClipboard.restype = wintypes.BOOL
+            user32.CloseClipboard.restype = wintypes.BOOL
+            user32.GetClipboardData.argtypes = [wintypes.UINT]
+            user32.GetClipboardData.restype = wintypes.HANDLE
+            kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
+            kernel32.GlobalLock.restype = ctypes.c_void_p
+            kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
+            kernel32.GlobalUnlock.restype = wintypes.BOOL
+
+            if user32.OpenClipboard(None):
+                h = user32.GetClipboardData(13)  # CF_UNICODETEXT
+                val = ""
+                if h:
+                    p = kernel32.GlobalLock(h)
+                    if p:
+                        val = str(ctypes.c_wchar_p(p).value or "")
+                        kernel32.GlobalUnlock(h)
+                user32.CloseClipboard()
+                return val
+        except Exception:
+            pass
+        return ""
 
     def get_pending_matches(self):
         try:
@@ -637,7 +693,8 @@ if __name__ == '__main__':
             resizable=False,
             frameless=True,
             easy_drag=False,
-            background_color='#09090b'
+            background_color='#09090b',
+            hidden=True
         )
         
         icon_path = get_asset_path('icon.ico')
