@@ -1,12 +1,13 @@
 import os
+import re
 import sys
 import json
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.9.12-beta"
-GITHUB_REPO = "RHA5/kd-connect"
+APP_VERSION = "v1.0.0"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -61,6 +62,49 @@ def _parse_username(data):
     if isinstance(raw_name, str) and raw_name.strip():
         return raw_name.strip()
     return ""
+
+
+def _get_api_base_url():
+    config = config_manager.load_config()
+    raw = str(config.get("api_base_url") or "https://kdmetrika.ru").strip().rstrip("/")
+    return raw or "https://kdmetrika.ru"
+
+
+def _resolve_download_url(raw_url=None, base_url=None):
+    base = (base_url or _get_api_base_url()).rstrip("/")
+    target = str(raw_url or "/downloads/KD-Connect.exe").strip()
+    return urllib.parse.urljoin(f"{base}/", target)
+
+
+def _parse_semver(version_str):
+    if not isinstance(version_str, str):
+        return None
+    cleaned = version_str.strip().lstrip("vV")
+    if not cleaned:
+        return None
+    core_part, _, pre_part = cleaned.partition("-")
+    core_segments = core_part.split(".")
+    if not core_segments or any(not seg.isdigit() for seg in core_segments):
+        return None
+    core = tuple(int(seg) for seg in core_segments)
+    while len(core) < 3:
+        core = core + (0,)
+    if not pre_part:
+        return (core, 1, ())
+    pre_tokens = tuple(
+        (0, int(tok)) if tok.isdigit() else (1, tok.lower())
+        for tok in re.split(r"[.\-]+", pre_part)
+        if tok
+    )
+    return (core, 0, pre_tokens)
+
+
+def _is_newer_version(candidate, current):
+    parsed_candidate = _parse_semver(candidate)
+    parsed_current = _parse_semver(current)
+    if parsed_candidate is None or parsed_current is None:
+        return bool(candidate and candidate.strip() != str(current or "").strip())
+    return parsed_candidate > parsed_current
 
 
 class AppApi:
@@ -444,50 +488,54 @@ class AppApi:
 
     def check_for_updates(self):
         try:
-            api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+            base_url = _get_api_base_url()
+            api_url = f"{base_url}/api/tracker/version"
             req = urllib.request.Request(api_url, headers={
                 "User-Agent": f"KD-Connect/{APP_VERSION}",
-                "Accept": "application/vnd.github.v3+json"
+                "Accept": "application/json",
+                "Cache-Control": "no-cache"
             })
             with urllib.request.urlopen(req, timeout=4) as resp:
-                data = json.loads(resp.read().decode())
-                latest_tag = data.get("tag_name", "").strip()
-                if not latest_tag:
+                data = json.loads(resp.read().decode("utf-8"))
+                latest_version = str(data.get("version") or "").strip()
+                if not latest_version:
                     return {"update_available": False}
 
-                download_url = None
-                for asset in data.get("assets", []):
-                    if asset.get("name", "").lower().endswith(".exe"):
-                        download_url = asset.get("browser_download_url")
-                        break
-
-                if not download_url:
-                    download_url = f"https://github.com/{GITHUB_REPO}/releases/latest/download/KD-Connect.exe"
-
-                is_newer = (latest_tag != APP_VERSION)
+                download_url = _resolve_download_url(data.get("download_url"), base_url)
+                is_newer = _is_newer_version(latest_version, APP_VERSION)
+                if is_newer:
+                    log.info(f"[UPDATE] Доступна новая версия {latest_version} (текущая {APP_VERSION})")
                 return {
                     "update_available": is_newer,
                     "current_version": APP_VERSION,
-                    "latest_version": latest_tag,
-                    "release_name": data.get("name", latest_tag),
+                    "latest_version": latest_version,
+                    "release_name": str(data.get("release_name") or latest_version),
                     "download_url": download_url
                 }
         except Exception as e:
+            log.warning(f"[UPDATE:CHECK_ERR] {e}")
             return {"update_available": False, "error": str(e)}
 
     def apply_update(self, download_url=None):
-        if not download_url:
-            download_url = f"https://github.com/{GITHUB_REPO}/releases/latest/download/KD-Connect.exe"
+        resolved_url = _resolve_download_url(download_url)
         try:
             temp_dir = os.environ.get('TEMP', os.path.dirname(sys.executable))
             temp_exe = os.path.join(temp_dir, f"KD-Connect-update-{int(time.time())}.exe")
 
-            req = urllib.request.Request(download_url, headers={"User-Agent": f"KD-Connect/{APP_VERSION}"})
+            log.info(f"[UPDATE] Загрузка обновления с {resolved_url}")
+            req = urllib.request.Request(resolved_url, headers={"User-Agent": f"KD-Connect/{APP_VERSION}"})
             with urllib.request.urlopen(req, timeout=30) as resp, open(temp_exe, 'wb') as out_f:
                 out_f.write(resp.read())
 
             if not os.path.exists(temp_exe) or os.path.getsize(temp_exe) < 1000000:
+                if os.path.exists(temp_exe):
+                    os.remove(temp_exe)
                 return {"success": False, "error": "Ошибка целостности скачанного файла"}
+
+            with open(temp_exe, 'rb') as check_f:
+                if check_f.read(2) != b'MZ':
+                    os.remove(temp_exe)
+                    return {"success": False, "error": "Скачанный файл не является исполняемым (.exe)"}
 
             current_exe = os.path.abspath(sys.executable)
             if not getattr(sys, 'frozen', False):
@@ -505,6 +553,7 @@ class AppApi:
                 webview.windows[0].destroy()
             sys.exit(0)
         except Exception as e:
+            log.error(f"[UPDATE:APPLY_ERR] {e}")
             return {"success": False, "error": str(e)}
 
     def export_log(self):
@@ -534,6 +583,13 @@ def get_asset_path(filename):
 
 
 if __name__ == '__main__':
+    _app_mutex = None
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            _app_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "KDConnectAppMutex")
+        except Exception:
+            pass
     try:
         api = AppApi()
         html_path = get_asset_path('preview.html')

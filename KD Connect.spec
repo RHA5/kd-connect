@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='KD-Connect-v0.9.12-beta',
+    name='KD-Connect',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
