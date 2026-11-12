@@ -1,6 +1,6 @@
 ﻿; -- KD Connect Inno Setup Script --
 #define MyAppName "KD Connect"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "0.9.13-beta"
 #define MyAppPublisher "KD Metrika"
 #define MyAppURL "https://kdmetrika.ru"
 #define MyAppExeName "KD-Connect.exe"
@@ -22,7 +22,7 @@ DefaultGroupName={#MyAppName}
 LicenseFile=license_ru.txt
 PrivilegesRequired=lowest
 OutputDir=.
-OutputBaseFilename=KD-Connect-Setup-v1.0.0
+OutputBaseFilename=KD-Connect-Setup-v0.9.13-beta
 SetupIconFile=..\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
@@ -34,15 +34,15 @@ WizardImageFile=wizard_large.bmp
 WizardSmallImageFile=wizard_small.bmp
 WizardBackColor=#09090b
 WizardImageBackColor=#09090b
-WizardSmallImageBackColor=#111114
+WizardSmallImageBackColor=#09090b
 WizardImageStretch=yes
 AppMutex=KDConnectAppMutex
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=1.0.0.0
+VersionInfoVersion=0.9.13.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion=1.0.0.0
+VersionInfoProductVersion=0.9.13.0
 VersionInfoDescription=Установщик {#MyAppName}
 VersionInfoCopyright=Copyright (C) 2026 RHA5 (KD Metrika)
 
@@ -50,16 +50,19 @@ VersionInfoCopyright=Copyright (C) 2026 RHA5 (KD Metrika)
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Messages]
-WelcomeLabel1=Добро пожаловать в установку KD Connect
-WelcomeLabel2=Мастер установит {#MyAppName} (версия {#MyAppVersion}) на ваш компьютер.%n%nПрограмма фиксирует статистику матчей Hunt: Showdown 1896 в автоматическом режиме и работает только в связке с вашим аккаунтом на сайте kdmetrika.ru.%n%nТрекер читает лишь системные логи игры и драйвера, не внедряется в память процесса и безопасен для Easy Anti-Cheat.
+WelcomeLabel1=Установка KD Connect
+WelcomeLabel2=Авто-трекер матчей Hunt: Showdown 1896 (v{#MyAppVersion}) для сайта kdmetrika.ru.%n%nРаботает только с системными логами, не внедряется в игру и безопасен для Easy Anti-Cheat.
 WizardLicense=Соглашение и отказ от ответственности
-LicenseLabel3=Перед установкой прочтите упрощенное соглашение. Для продолжения необходимо принять условия.
-SelectDirDesc=Куда установить {#MyAppName}?
-SelectDirLabel3=Программа будет установлена в следующую папку.
-SelectDirBrowseLabel=Нажмите «Обзор...», чтобы выбрать другую папку, или «Установить», чтобы начать установку.%n%nРекомендуется папка по умолчанию: она не требует прав администратора и позволяет автообновлениям работать тихо.
-FinishedHeadingLabel=Установка {#MyAppName} завершена
-FinishedLabelNoIcons=Программа {#MyAppName} установлена и готова к работе.%n%nОткройте трекер и привяжите токен синхронизации из настроек на сайте kdmetrika.ru.
-FinishedLabel=Программа {#MyAppName} установлена и готова к работе.%n%nОткройте трекер и привяжите токен синхронизации из настроек на сайте kdmetrika.ru.
+LicenseLabel=Упрощённые правила использования «как есть»
+LicenseLabel3=Чтобы продолжить, примите условия ниже.
+WizardSelectDir=Папка установки
+SelectDirDesc=Выберите папку для {#MyAppName}
+SelectDirLabel3=Программа установится в указанную папку.
+SelectDirBrowseLabel=Рекомендуется оставить папку по умолчанию — тогда автообновления будут работать тихо без прав администратора.
+FinishedHeadingLabel=Установка завершена
+FinishedLabelNoIcons=Откройте программу и настройте её по пошаговой инструкции внутри.
+FinishedLabel=Откройте программу и настройте её по пошаговой инструкции внутри.
+ClickFinish=
 
 [Files]
 Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
@@ -70,7 +73,7 @@ Name: "{userprograms}\{#MyAppName}\Удалить {#MyAppName}"; Filename: "{uni
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Check: ShouldCreateDesktopShortcut
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Запустить {#MyAppName} после завершения"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Запустить {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{userappdata}\KDConnect"
