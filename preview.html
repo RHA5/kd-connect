@@ -36,9 +36,41 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background-color: #09090b;
+      background-color: #070709;
       color: #f4f4f5;
       user-select: none;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #app-shell {
+      width: 430px;
+      height: 660px;
+      max-width: 100vw;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      background-color: #09090b;
+      overflow: hidden;
+      border: 1px solid #27272a;
+      border-radius: 20px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 35px rgba(255, 255, 255, 0.04);
+    }
+    body.in-pywebview {
+      background-color: #09090b !important;
+    }
+    body.in-pywebview #app-shell {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
     }
     .pywebview-drag-region {
       -webkit-app-region: drag;
@@ -56,9 +88,68 @@
     .pulse-glow-green {
       box-shadow: 0 0 14px rgba(16, 185, 129, 0.5);
     }
+    @keyframes splashLogoBreathe {
+      0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.22));
+      }
+      50% {
+        transform: scale(1.04);
+        filter: drop-shadow(0 0 28px rgba(255, 255, 255, 0.42));
+      }
+    }
+    @keyframes splashRingPulse {
+      0%, 100% {
+        opacity: 0.25;
+        transform: scale(0.95);
+      }
+      50% {
+        opacity: 0.65;
+        transform: scale(1.08);
+      }
+    }
+    @keyframes splashSweep {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(220%); }
+    }
+    @keyframes slideFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .splash-logo-anim {
+      animation: splashLogoBreathe 2.2s ease-in-out infinite;
+    }
+    .splash-ring-anim {
+      animation: splashRingPulse 2.2s ease-in-out infinite;
+    }
+    .splash-bar-anim {
+      animation: splashSweep 1.2s ease-in-out infinite;
+    }
+    .slide-fade-in {
+      animation: slideFadeIn 0.24s ease-out forwards;
+    }
   </style>
 </head>
-<body class="h-full w-full flex flex-col justify-between bg-zinc-950 font-sans antialiased text-zinc-200 relative">
+<body class="h-full w-full bg-[#070709] font-sans antialiased text-zinc-200">
+  <!-- ОБОЛОЧКА ОКНА KD CONNECT (ФИКСИРОВАННЫЙ РАЗМЕР 430x660) -->
+  <div id="app-shell">
+    <!-- ================== ЗАСТАВКА ПРИ ЗАПУСКЕ ================== -->
+  <div id="splash-screen" class="absolute inset-0 bg-[#09090b] z-[60] flex flex-col items-center justify-center select-none transition-opacity duration-500 ease-out">
+    <div class="relative flex flex-col items-center">
+      <!-- Мягкое монохромное свечение за логотипом -->
+      <div class="absolute -inset-6 rounded-full bg-white/10 blur-2xl splash-ring-anim pointer-events-none"></div>
+      <div class="relative w-24 h-24 rounded-3xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.08)]">
+        <img id="splash-logo-img" src="" alt="KD Connect" class="w-16 h-16 object-contain splash-logo-anim" />
+      </div>
+      <div class="mt-5 text-center space-y-1">
+        <span class="text-sm font-black tracking-[0.26em] font-mono text-white block">KD CONNECT</span>
+        <span class="text-[10px] font-mono tracking-[0.18em] text-zinc-500 uppercase block">АВТО-ТРЕКЕР СТАТИСТИКИ</span>
+      </div>
+      <div class="w-28 h-0.5 bg-zinc-900 rounded-full mt-6 overflow-hidden border border-zinc-800/80">
+        <div class="h-full w-1/2 bg-white/80 rounded-full splash-bar-anim"></div>
+      </div>
+    </div>
+  </div>
   <!-- ================== ШАПКА ================== -->
   <header class="h-12 px-3.5 border-b border-zinc-850 flex items-center justify-between bg-zinc-900/95 pywebview-drag-region shrink-0 select-none z-40">
     <div class="flex items-center gap-2.5">
@@ -95,49 +186,118 @@
   </div>
   <!-- ================== ОСНОВНОЙ КОНТЕНТ ================== -->
   <main class="flex-1 p-4 flex flex-col justify-between overflow-hidden relative">
-    <!-- 1. ЭКРАН ПРЕДУПРЕЖДЕНИЯ (DISCLAIMER) -->
+    <!-- 1. СЛАЙДЕР ОСОБЕННОСТЕЙ РАБОТЫ (4 СЛАЙДА) -->
     <div id="section-disclaimer" class="hidden flex-1 flex flex-col justify-between overflow-hidden">
-      <!-- Скроллируемая область контента с аккуратным отступом справа под скроллбар -->
-      <div class="flex-1 overflow-y-auto custom-scroll pr-1.5 space-y-3 pt-1">
-        <div class="pb-2 border-b border-zinc-850">
-          <h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono">Особенности работы трекера</h2>
-          <p class="text-xs text-zinc-300 mt-1.5 leading-relaxed">
-            Это приложение автоматически считает убийства и смерти на основе логов игры. Оно является вспомогательным инструментом для сервиса KD Metrika и не работает самостоятельно. Приложение не гарантирует 100% работоспособность и точность подсчёта из-за внешних ограничений:
-          </p>
+      <!-- Шапка слайдера -->
+      <div class="flex items-center justify-between pb-2.5 border-b border-zinc-850 shrink-0">
+        <div class="flex items-center gap-2">
+          <span id="disclaimer-slide-indicator" class="text-xs font-mono text-zinc-400 uppercase tracking-wider">1 ИЗ 5</span>
         </div>
-        <div class="space-y-2 text-xs">
-          <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <span class="font-bold text-zinc-100">Только NVIDIA.</span>
-            <p class="text-zinc-400 text-xs mt-0.5 leading-relaxed">Сбор работает через оверлей GeForce. На видеокартах AMD автоматический трекинг не поддерживается.</p>
+        <div class="flex items-center gap-2.5">
+          <div class="flex gap-1.5" id="disclaimer-dots">
+            <div class="w-2 h-2 rounded-full bg-white transition-all" id="disclaimer-dot-1"></div>
+            <div class="w-2 h-2 rounded-full bg-zinc-700 transition-all" id="disclaimer-dot-2"></div>
+            <div class="w-2 h-2 rounded-full bg-zinc-700 transition-all" id="disclaimer-dot-3"></div>
+            <div class="w-2 h-2 rounded-full bg-zinc-700 transition-all" id="disclaimer-dot-4"></div>
+            <div class="w-2 h-2 rounded-full bg-zinc-700 transition-all" id="disclaimer-dot-5"></div>
           </div>
-          <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <span class="font-bold text-zinc-100">Учитываются все смерти.</span>
-            <p class="text-zinc-400 text-xs mt-0.5 leading-relaxed">Засчитываются падения, огонь, монстры, тимкиллы и урон, нанесённый самому себе.</p>
-          </div>
-          <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <span class="font-bold text-zinc-100">Размены.</span>
-            <p class="text-zinc-400 text-xs mt-0.5 leading-relaxed">Не всегда учитываются обоюдные убийства из-за задержки записи событий в лог.</p>
-          </div>
-          <div class="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-            <span class="font-bold text-zinc-100">Без ассистов.</span>
-            <p class="text-zinc-400 text-xs mt-0.5 leading-relaxed">Игра не сохраняет информацию о содействиях в локальные логи.</p>
-          </div>
+          <button id="btn-disclaimer-close-top" onclick="cancelDisclaimerSlider()" class="hidden text-zinc-500 hover:text-white font-mono text-xs transition-colors cursor-pointer pl-1" title="Закрыть">✕</button>
         </div>
-        <p class="text-[11px] text-zinc-500 italic pb-1">
-          Ошибки подсчета всегда можно убрать через «Редактор» на сайте.
-        </p>
       </div>
-      <!-- Прикрепленный к низу блок с кнопкой и галочкой (всегда виден при любом масштабировании) -->
-      <div class="pt-2.5 border-t border-zinc-850 space-y-2 shrink-0">
-        <div class="flex justify-center items-center py-0.5">
-          <label class="flex items-center gap-2.5 cursor-pointer text-xs text-zinc-300 select-none">
-            <input type="checkbox" id="chk-hide-disclaimer" class="w-4 h-4 rounded bg-zinc-900 border border-zinc-700 accent-white cursor-pointer transition-all">
-            <span>Больше не показывать</span>
-          </label>
+
+      <!-- Контейнер слайдов -->
+      <div class="flex-1 flex flex-col justify-center py-2 overflow-y-auto custom-scroll pr-1">
+        <!-- СЛАЙД 1: ТОЛЬКО NVIDIA -->
+        <div id="disclaimer-slide-1" class="slide-fade-in space-y-4">
+          <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 py-6 px-5 flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_70%)] pointer-events-none"></div>
+            <h2 class="text-lg font-black text-white uppercase tracking-wide font-mono leading-tight">Только видеокарты NVIDIA</h2>
+          </div>
+          <div class="space-y-3 px-1.5 pt-1">
+            <p class="text-sm text-zinc-200 leading-relaxed">
+              Авто-трекинг работает через встроенный оверлей <b class="text-white">NVIDIA Highlights</b>.
+            </p>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+              Видеокарты других производителей (<b class="text-zinc-200">AMD, Intel</b>) не поддерживаются, так как их драйверы не сохраняют нужные системные события.
+            </p>
+          </div>
         </div>
-        <button onclick="handleDisclaimerProceed()" class="w-full py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
-          ПОНЯТНО, ДАЛЬШЕ →
-        </button>
+
+        <!-- СЛАЙД 2: ТОЛЬКО ДЛЯ HUNT -->
+        <div id="disclaimer-slide-2" class="hidden slide-fade-in space-y-4">
+          <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 py-6 px-5 flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_70%)] pointer-events-none"></div>
+            <h2 class="text-lg font-black text-white uppercase tracking-wide font-mono leading-tight">Только для Hunt: Showdown</h2>
+          </div>
+          <div class="space-y-3 px-1.5 pt-1">
+            <p class="text-sm text-zinc-200 leading-relaxed">
+              Трекер разработан эксклюзивно для <b class="text-white">Hunt: Showdown</b>.
+            </p>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+              Программа работает в безопасном режиме «только чтение»: считывает открытые текстовые логи, не внедряется в память игры и не модифицирует файлы.
+            </p>
+          </div>
+        </div>
+
+        <!-- СЛАЙД 3: УЧЁТ ВСЕХ СМЕРТЕЙ -->
+        <div id="disclaimer-slide-3" class="hidden slide-fade-in space-y-4">
+          <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 py-6 px-5 flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_70%)] pointer-events-none"></div>
+            <h2 class="text-lg font-black text-white uppercase tracking-wide font-mono leading-tight">Учёт всех смертей</h2>
+          </div>
+          <div class="space-y-3 px-1.5 pt-1">
+            <p class="text-sm text-zinc-200 leading-relaxed">
+              Трекер считывает из логов абсолютно все смерти: от монстров, собственного взрыва, падения или от союзника.
+            </p>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+              В официальную статистику игры часть из них не идёт — повлиять на это технически невозможно, поэтому перед сохранением сессии предусмотрена ручная корректировка.
+            </p>
+          </div>
+        </div>
+
+        <!-- СЛАЙД 4: РАЗМЕНЫ -->
+        <div id="disclaimer-slide-4" class="hidden slide-fade-in space-y-4">
+          <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 py-6 px-5 flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_70%)] pointer-events-none"></div>
+            <h2 class="text-lg font-black text-white uppercase tracking-wide font-mono leading-tight">Размены</h2>
+          </div>
+          <div class="space-y-3 px-1.5 pt-1">
+            <p class="text-sm text-zinc-200 leading-relaxed">
+              Программа старается учитывать размены, но примерно в 1 из 100 случаев они могут фиксироваться некорректно.
+            </p>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+              Сбои происходят по независящим от нас причинам записи логов, но вы всегда можете отредактировать результат на экране сверки.
+            </p>
+          </div>
+        </div>
+
+        <!-- СЛАЙД 5: БЕЗ АССИСТОВ -->
+        <div id="disclaimer-slide-5" class="hidden slide-fade-in space-y-4">
+          <div class="rounded-2xl bg-zinc-900/80 border border-zinc-800/90 py-6 px-5 flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.06),transparent_70%)] pointer-events-none"></div>
+            <h2 class="text-lg font-black text-white uppercase tracking-wide font-mono leading-tight">Без ассистов</h2>
+          </div>
+          <div class="space-y-3 px-1.5 pt-1">
+            <p class="text-sm text-zinc-200 leading-relaxed">
+              Из-за технических особенностей игры мы не можем автоматически считывать ассисты.
+            </p>
+            <p class="text-sm text-zinc-400 leading-relaxed">
+              Если вы отслеживаете статистику в режиме <b class="text-zinc-200">KDA</b>, просим использовать ручной ввод данных на сайте.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Кнопки навигации слайдера -->
+      <div class="pt-2.5 border-t border-zinc-850 shrink-0">
+        <div class="flex gap-2">
+          <button id="btn-disclaimer-prev" onclick="prevDisclaimerSlide()" class="hidden px-4 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0">
+            ← НАЗАД
+          </button>
+          <button id="btn-disclaimer-next" onclick="nextDisclaimerSlide()" class="flex-1 py-3 bg-white hover:bg-zinc-200 text-black font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer">
+            ДАЛЕЕ →
+          </button>
+        </div>
       </div>
     </div>
     <!-- 2. МАСТЕР ПЕРВИЧНОЙ НАСТРОЙКИ (3 ШАГА) -->
@@ -281,7 +441,7 @@
           <div class="p-3 bg-zinc-900/80 border border-zinc-800 rounded-xl space-y-1.5 text-xs text-zinc-300">
             <div class="font-bold text-zinc-200">Инструкция:</div>
             <ol class="list-decimal list-inside space-y-1 text-xs text-zinc-400">
-              <li>Откройте <a href="#" onclick="openExternalUrl('http://localhost:3000/settings')" class="text-white underline hover:text-zinc-300">Настройки профиля</a> на сайте.</li>
+              <li>Откройте <a href="#" onclick="openExternalUrl(getWebsiteUrl('/settings'))" class="text-white underline hover:text-zinc-300">Настройки профиля</a> на сайте.</li>
               <li>В блоке <b>KD Connect</b> нажмите «Скопировать токен».</li>
               <li>Вставьте токен в поле ниже и нажмите «Связать профиль».</li>
             </ol>
@@ -556,7 +716,7 @@
           <span class="text-zinc-700 font-mono">/</span>
           <span class="text-xs font-bold uppercase tracking-wider font-mono text-zinc-300">Настройки</span>
         </div>
-        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.9.13-beta</span></span>
+        <span class="text-[10px] text-zinc-500 font-mono"><span id="app-version-label">v0.10.0</span></span>
       </div>
       <div class="flex-1 p-4 space-y-3 overflow-y-auto custom-scroll text-xs">
         <!-- Статус 1: NVIDIA -->
@@ -591,6 +751,12 @@
             <span id="token-badge" class="font-mono font-bold text-zinc-400 text-xs">...</span>
           </div>
           <div id="token-status-msg" class="text-[11px] text-zinc-500 font-mono">Проверка...</div>
+        </div>
+        <!-- Кнопка повторить слайдер правил -->
+        <div class="pt-1">
+          <button onclick="openDisclaimerSliderFromSettings()" class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer">
+            Особенности работы трекера
+          </button>
         </div>
         <!-- Кнопка пройти настройку заново -->
         <div class="pt-1">
@@ -686,6 +852,7 @@
       </div>
     </div>
   </main>
+  </div><!-- /#app-shell -->
   <!-- ================== СКРИПТЫ ================== -->
   <script>
     let latestDownloadUrl = null;
@@ -772,13 +939,82 @@
         el.classList.add('hidden');
       }
     }
-    // --- ЛОГИКА ДИСКЛЕЙМЕРА И ОНБОРДИНГА ---
-    async function handleDisclaimerProceed() {
-      const chk = document.getElementById('chk-hide-disclaimer');
-      if (chk && chk.checked && window.pywebview && window.pywebview.api) {
-        await window.pywebview.api.set_hide_disclaimer(true);
+    // --- ЛОГИКА СЛАЙДЕРА ПРАВИЛ И ОНБОРДИНГА ---
+    let currentDisclaimerSlide = 1;
+    let isDisclaimerFromSettings = false;
+
+    function goToDisclaimerSlide(stepIdx) {
+      currentDisclaimerSlide = Math.max(1, Math.min(5, stepIdx));
+      for (let i = 1; i <= 5; i++) {
+        const slide = document.getElementById(`disclaimer-slide-${i}`);
+        const dot = document.getElementById(`disclaimer-dot-${i}`);
+        if (slide) {
+          if (i === currentDisclaimerSlide) {
+            slide.classList.remove('hidden');
+          } else {
+            slide.classList.add('hidden');
+          }
+        }
+        if (dot) {
+          dot.className = (i === currentDisclaimerSlide)
+            ? 'w-2 h-2 rounded-full bg-white transition-all'
+            : 'w-2 h-2 rounded-full bg-zinc-700 transition-all';
+        }
       }
+      const ind = document.getElementById('disclaimer-slide-indicator');
+      if (ind) ind.innerText = `${currentDisclaimerSlide} ИЗ 5`;
+
+      const prevBtn = document.getElementById('btn-disclaimer-prev');
+      if (prevBtn) {
+        if (currentDisclaimerSlide > 1) {
+          prevBtn.classList.remove('hidden');
+        } else {
+          prevBtn.classList.add('hidden');
+        }
+      }
+
+      const nextBtn = document.getElementById('btn-disclaimer-next');
+      if (nextBtn) {
+        if (currentDisclaimerSlide < 5) {
+          nextBtn.innerText = 'ДАЛЕЕ →';
+        } else {
+          nextBtn.innerText = 'ПРИСТУПИТЬ К НАСТРОЙКЕ →';
+        }
+      }
+    }
+
+    function nextDisclaimerSlide() {
+      if (currentDisclaimerSlide < 5) {
+        goToDisclaimerSlide(currentDisclaimerSlide + 1);
+      } else {
+        finishDisclaimerSlider();
+      }
+    }
+
+    function prevDisclaimerSlide() {
+      if (currentDisclaimerSlide > 1) {
+        goToDisclaimerSlide(currentDisclaimerSlide - 1);
+      }
+    }
+
+    async function finishDisclaimerSlider() {
+      const fromSettings = isDisclaimerFromSettings;
+      isDisclaimerFromSettings = false;
       document.getElementById('section-disclaimer').classList.add('hidden');
+      const closeTopBtn = document.getElementById('btn-disclaimer-close-top');
+      if (closeTopBtn) closeTopBtn.classList.add('hidden');
+
+      if (fromSettings) {
+        showMainScreen();
+        toggleSettings(true);
+        return;
+      }
+
+      if (window.pywebview && window.pywebview.api) {
+        try {
+          await window.pywebview.api.set_hide_disclaimer(true);
+        } catch(e) {}
+      }
       const isCompleted = window.pywebview && window.pywebview.api ? await window.pywebview.api.is_onboarding_completed() : false;
       if (isCompleted) {
         showMainScreen();
@@ -786,6 +1022,28 @@
         document.getElementById('section-wizard').classList.remove('hidden');
         goToWizardStep(1);
       }
+    }
+
+    function openDisclaimerSliderFromSettings() {
+      toggleSettings(false);
+      isDisclaimerFromSettings = true;
+      document.getElementById('section-idle').classList.add('hidden');
+      document.getElementById('section-active').classList.add('hidden');
+      document.getElementById('section-wizard').classList.add('hidden');
+      document.getElementById('section-disclaimer').classList.remove('hidden');
+      const closeTopBtn = document.getElementById('btn-disclaimer-close-top');
+      if (closeTopBtn) closeTopBtn.classList.remove('hidden');
+      goToDisclaimerSlide(1);
+    }
+
+    function cancelDisclaimerSlider() {
+      if (isDisclaimerFromSettings) {
+        finishDisclaimerSlider();
+      }
+    }
+
+    function handleDisclaimerProceed() {
+      finishDisclaimerSlider();
     }
     function goToWizardStep(stepIdx) {
       currentWizStep = stepIdx;
@@ -1113,11 +1371,16 @@
       if (btn2) { btn2.disabled = false; btn2.innerText = 'Сохранить'; }
     }
 
+    function getWebsiteUrl(path = '') {
+      const config = appState && appState.config ? appState.config : {};
+      const baseUrl = (config.api_base_url || 'https://kdmetrika.ru').replace(/\/+$/, '');
+      if (!path) return baseUrl;
+      return `${baseUrl}${path.startsWith('/') ? path : '/' + path}`;
+    }
+
     function handleOpenDashboard() {
       const username = (appState && appState.profile && appState.profile.username) ? appState.profile.username : '';
-      const config = appState && appState.config ? appState.config : {};
-      const baseUrl = config.api_base_url || 'http://localhost:3000';
-      const targetUrl = username ? `${baseUrl}/${encodeURIComponent(username)}` : `${baseUrl}/dashboard`;
+      const targetUrl = username ? getWebsiteUrl(`/${encodeURIComponent(username)}`) : getWebsiteUrl('/dashboard');
       openExternalUrl(targetUrl);
     }
     function startSessionTimer(initialSec = 0) {
@@ -1571,29 +1834,74 @@ ${res.path}`);
         }
       }
     };
-    window.addEventListener('pywebviewready', async () => {
-      if (!window.pywebview || !window.pywebview.api) return;
-      const isDisclaimerHidden = await window.pywebview.api.is_disclaimer_hidden();
-      const isOnboardingDone = await window.pywebview.api.is_onboarding_completed();
-      if (!isDisclaimerHidden) {
-        document.getElementById('section-disclaimer').classList.remove('hidden');
-        document.getElementById('section-wizard').classList.add('hidden');
-        document.getElementById('section-idle').classList.add('hidden');
-      } else if (!isOnboardingDone) {
-        document.getElementById('section-wizard').classList.remove('hidden');
-        document.getElementById('section-disclaimer').classList.add('hidden');
-        document.getElementById('section-idle').classList.add('hidden');
-        goToWizardStep(1);
-      } else {
-        showMainScreen();
-      }
-      checkSystemsReal();
+    let splashDismissed = false;
+    const splashShownAt = Date.now();
+
+    function hideSplashScreen() {
+      if (splashDismissed) return;
+      splashDismissed = true;
+      const splash = document.getElementById('splash-screen');
+      if (!splash) return;
+      splash.style.opacity = '0';
+      splash.style.pointerEvents = 'none';
+      setTimeout(() => {
+        splash.classList.add('hidden');
+      }, 520);
+    }
+
+    function scheduleSplashHide(minDurationMs = 3000) {
+      const elapsed = Date.now() - splashShownAt;
+      const delay = Math.max(0, minDurationMs - elapsed);
+      setTimeout(hideSplashScreen, delay);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
       try {
-        const ver = await window.pywebview.api.get_version();
-        const verLabel = document.getElementById('app-version-label');
-        if (verLabel && ver) verLabel.innerText = ver;
+        const hdrLogo = document.querySelector('header img');
+        const splashLogo = document.getElementById('splash-logo-img');
+        if (hdrLogo && splashLogo && hdrLogo.src) {
+          splashLogo.src = hdrLogo.src;
+        }
       } catch(e) {}
-      checkUpdates();
+      setTimeout(() => {
+        if (!window.pywebview) {
+          scheduleSplashHide(3000);
+        }
+      }, 300);
+    });
+
+    window.addEventListener('pywebviewready', async () => {
+      document.body.classList.add('in-pywebview');
+      if (!window.pywebview || !window.pywebview.api) {
+        scheduleSplashHide(3000);
+        return;
+      }
+      try {
+        const isDisclaimerHidden = await window.pywebview.api.is_disclaimer_hidden();
+        const isOnboardingDone = await window.pywebview.api.is_onboarding_completed();
+        if (!isDisclaimerHidden) {
+          document.getElementById('section-disclaimer').classList.remove('hidden');
+          document.getElementById('section-wizard').classList.add('hidden');
+          document.getElementById('section-idle').classList.add('hidden');
+          goToDisclaimerSlide(1);
+        } else if (!isOnboardingDone) {
+          document.getElementById('section-wizard').classList.remove('hidden');
+          document.getElementById('section-disclaimer').classList.add('hidden');
+          document.getElementById('section-idle').classList.add('hidden');
+          goToWizardStep(1);
+        } else {
+          showMainScreen();
+        }
+        checkSystemsReal();
+        try {
+          const ver = await window.pywebview.api.get_version();
+          const verLabel = document.getElementById('app-version-label');
+          if (verLabel && ver) verLabel.innerText = ver;
+        } catch(e) {}
+        checkUpdates();
+      } finally {
+        scheduleSplashHide(3000);
+      }
     });
     // Фоновая синхронизация статуса сессии с сервером (каждые 3 сек и при фокусе)
     async function syncSessionStatus() {

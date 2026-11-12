@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.9.13-beta"
+APP_VERSION = "v0.10.0"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -212,7 +212,7 @@ class AppApi:
             "manual_conflict": False
         }
         if token:
-            api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
+            api_url = f"{_get_api_base_url()}/api/tracker/pulse"
             try:
                 req = urllib.request.Request(api_url, headers={"x-sync-token": token})
                 with urllib.request.urlopen(req, timeout=3) as resp:
@@ -260,7 +260,7 @@ class AppApi:
         config_manager.update_config_value("sync_token", token)
 
         config = config_manager.load_config()
-        api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
+        api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         try:
             req = urllib.request.Request(api_url, headers={"x-sync-token": token})
             with urllib.request.urlopen(req, timeout=4) as resp:
@@ -285,7 +285,7 @@ class AppApi:
             log.warning("[SESSION:START_FAIL] Попытка старта сессии без sync_token")
             return {"success": False, "error": "Привяжите токен перед началом сессии"}
 
-        api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
+        api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         payload = {"type": "session_start"}
         if mood_rating is not None:
             payload["mood_rating"] = mood_rating
@@ -327,7 +327,7 @@ class AppApi:
             log.warning("[SESSION:END_FAIL] Попытка завершения сессии без sync_token")
             return {"success": False, "error": "Токен не найден"}
 
-        api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
+        api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         payload = {"type": "session_end"}
         if adjusted_kills is not None:
             payload["adjusted_kills"] = adjusted_kills
@@ -370,7 +370,7 @@ class AppApi:
         token = config.get("sync_token", "").strip()
         if not token:
             return {"success": False, "active_session": None, "manual_conflict": False}
-        api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
+        api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         try:
             req = urllib.request.Request(api_url, headers={"x-sync-token": token})
             with urllib.request.urlopen(req, timeout=3) as resp:
@@ -443,7 +443,7 @@ class AppApi:
         if not token:
             return {"success": False, "error": "Привяжите токен в настройках перед отправкой отчета"}
 
-        api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/report"
+        api_url = f"{_get_api_base_url()}/api/tracker/report"
         diagnostics = self._get_system_diagnostics()
         recent_logs = diagnostics + logger.get_recent_logs()
 
@@ -541,11 +541,29 @@ class AppApi:
             if not getattr(sys, 'frozen', False):
                 return {"success": True, "downloaded_path": temp_exe, "dev_mode": True}
 
-            batch_cmd = f'timeout /t 1 /nobreak >nul & move /y "{temp_exe}" "{current_exe}" & start "" "{current_exe}"'
+            bat_path = os.path.join(temp_dir, f"kd_update_{int(time.time())}.bat")
+            bat_content = (
+                "@echo off\r\n"
+                "timeout /t 1 /nobreak >nul\r\n"
+                ":retry\r\n"
+                f'move /y "{temp_exe}" "{current_exe}" >nul 2>&1\r\n'
+                "if errorlevel 1 (\r\n"
+                "    timeout /t 1 /nobreak >nul\r\n"
+                "    goto retry\r\n"
+                ")\r\n"
+                f'start "" "{current_exe}"\r\n'
+                'del "%~f0"\r\n'
+            )
+            with open(bat_path, "w", encoding="cp866") as bf:
+                bf.write(bat_content)
+
             import subprocess
+            flags = 0
+            if sys.platform == 'win32':
+                flags = subprocess.CREATE_NO_WINDOW | 0x00000008  # DETACHED_PROCESS
             subprocess.Popen(
-                ["cmd.exe", "/c", batch_cmd],
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
+                ["cmd.exe", "/c", bat_path],
+                creationflags=flags,
                 close_fds=True
             )
 
@@ -587,7 +605,12 @@ if __name__ == '__main__':
     if sys.platform == 'win32':
         try:
             import ctypes
-            _app_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "KDConnectAppMutex")
+            ERROR_ALREADY_EXISTS = 183
+            kernel32 = ctypes.windll.kernel32
+            _app_mutex = kernel32.CreateMutexW(None, False, "Global\\KDConnectSingleInstanceMutex")
+            if kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+                ctypes.windll.user32.MessageBoxW(0, "Программа KD Connect уже запущена!", "KD Connect", 0x40 | 0x0)
+                sys.exit(0)
         except Exception:
             pass
     try:

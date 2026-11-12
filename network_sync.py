@@ -99,7 +99,7 @@ class NetworkSync:
             log.warning("[NET:SKIP] Отправка отменена: sync_token не привязан")
             return False, "Токен синхронизации не указан в настройках"
 
-        api_url = f"{config.get('api_base_url', 'http://localhost:3000')}/api/tracker/pulse"
+        api_url = f"{config.get('api_base_url', 'https://kdmetrika.ru')}/api/tracker/pulse"
         req_start = time.monotonic()
         p_type = payload.get("type", "unknown")
         masked_tok = logger.mask_token(token)
