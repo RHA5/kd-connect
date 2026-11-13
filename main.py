@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.10.3"
+APP_VERSION = "v0.10.4"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -612,8 +612,15 @@ class AppApi:
             bat_path = os.path.join(temp_dir, f"kd_update_{int(time.time())}.bat")
             bat_content = (
                 "@echo off\r\n"
+                "set _PYI_PARENT_PROCESS_LEVEL=\r\n"
+                "set _PYI_ARCHIVE_FILE=\r\n"
+                "set _PYI_APPLICATION_HOME_DIR=\r\n"
+                "set _PYI_SPLASH_IPC=\r\n"
                 "set _MEIPASS2=\r\n"
                 "set _MEIPASS=\r\n"
+                "set PYINSTALLER_STRICT_UNPACK_MODE=\r\n"
+                "set PYINSTALLER_RESET_ENVIRONMENT=\r\n"
+                "set PYINSTALLER_SUPPRESS_SPLASH_SCREEN=\r\n"
                 "timeout /t 2 /nobreak >nul\r\n"
                 ":retry\r\n"
                 f'move /y "{temp_exe}" "{current_exe}" >nul 2>&1\r\n'
@@ -629,8 +636,9 @@ class AppApi:
 
             import subprocess
             clean_env = os.environ.copy()
-            clean_env.pop('_MEIPASS2', None)
-            clean_env.pop('_MEIPASS', None)
+            for var_key in list(clean_env.keys()):
+                if var_key.upper().startswith(('_PYI_', '_MEI', 'PYINSTALLER')):
+                    clean_env.pop(var_key, None)
 
             flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
             subprocess.Popen(
