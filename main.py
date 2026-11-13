@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.10.1"
+APP_VERSION = "v0.10.2"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -600,7 +600,9 @@ class AppApi:
             bat_path = os.path.join(temp_dir, f"kd_update_{int(time.time())}.bat")
             bat_content = (
                 "@echo off\r\n"
-                "timeout /t 1 /nobreak >nul\r\n"
+                "set _MEIPASS2=\r\n"
+                "set _MEIPASS=\r\n"
+                "timeout /t 2 /nobreak >nul\r\n"
                 ":retry\r\n"
                 f'move /y "{temp_exe}" "{current_exe}" >nul 2>&1\r\n'
                 "if errorlevel 1 (\r\n"
@@ -608,18 +610,21 @@ class AppApi:
                 "    goto retry\r\n"
                 ")\r\n"
                 f'start "" "{current_exe}"\r\n'
-                'del "%~f0"\r\n'
+                '(goto) 2>nul & del "%~f0"\r\n'
             )
             with open(bat_path, "w", encoding="cp866") as bf:
                 bf.write(bat_content)
 
             import subprocess
-            flags = 0
-            if sys.platform == 'win32':
-                flags = subprocess.CREATE_NO_WINDOW | 0x00000008  # DETACHED_PROCESS
+            clean_env = os.environ.copy()
+            clean_env.pop('_MEIPASS2', None)
+            clean_env.pop('_MEIPASS', None)
+
+            flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
             subprocess.Popen(
                 ["cmd.exe", "/c", bat_path],
                 creationflags=flags,
+                env=clean_env,
                 close_fds=True
             )
 
@@ -694,7 +699,7 @@ if __name__ == '__main__':
             frameless=True,
             easy_drag=False,
             background_color='#09090b',
-            hidden=True
+            hidden=False
         )
         
         icon_path = get_asset_path('icon.ico')
@@ -710,6 +715,12 @@ if __name__ == '__main__':
         )
         api.set_engine(engine)
         engine.start()
+
+        import threading
+        def _deferred_taskbar_setup():
+            time.sleep(1.0)
+            _enable_taskbar_minimize("KD Connect")
+        threading.Thread(target=_deferred_taskbar_setup, daemon=True).start()
 
         webview.start(debug=False, icon=icon_path if os.path.exists(icon_path) else None)
         engine.stop()

@@ -1,6 +1,6 @@
 ﻿; -- KD Connect Inno Setup Script --
 #define MyAppName "KD Connect"
-#define MyAppVersion "0.10.1"
+#define MyAppVersion "0.10.2"
 #define MyAppPublisher "KD Metrika"
 #define MyAppURL "https://kdmetrika.ru"
 #define MyAppExeName "KD-Connect.exe"
@@ -22,7 +22,7 @@ DefaultGroupName={#MyAppName}
 LicenseFile=license_ru.txt
 PrivilegesRequired=lowest
 OutputDir=.
-OutputBaseFilename=KD-Connect-Setup-v0.10.1
+OutputBaseFilename=KD-Connect-Setup-v0.10.2
 SetupIconFile=..\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
