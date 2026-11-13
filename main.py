@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.10.2"
+APP_VERSION = "v0.10.3"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -130,6 +130,18 @@ class AppApi:
 
     def set_engine(self, engine):
         self.engine = engine
+
+    def on_frontend_ready(self):
+        if sys.platform == 'win32' and webview.windows:
+            try:
+                form = webview.windows[0].native
+                if form and hasattr(form, 'Controls') and form.Controls.Count > 0:
+                    wv_ctrl = form.Controls[0]
+                    from System.Windows.Forms import MethodInvoker
+                    form.Invoke(MethodInvoker(lambda: setattr(wv_ctrl, 'Visible', True)))
+            except Exception as ex:
+                log.warning(f"on_frontend_ready error: {ex}")
+        return True
 
     def show_window(self):
         if webview.windows:
@@ -721,6 +733,39 @@ if __name__ == '__main__':
             time.sleep(1.0)
             _enable_taskbar_minimize("KD Connect")
         threading.Thread(target=_deferred_taskbar_setup, daemon=True).start()
+
+        def _setup_native_splash():
+            if sys.platform != 'win32':
+                return
+            try:
+                from System.Windows.Forms import ImageLayout, MethodInvoker
+                from System.Drawing import Image
+                form = window.native
+                splash_path = get_asset_path('native_splash.png')
+                if not os.path.exists(splash_path):
+                    exe_dir = os.path.dirname(sys.executable)
+                    alt_splash = os.path.join(exe_dir, 'native_splash.png')
+                    if os.path.exists(alt_splash):
+                        splash_path = alt_splash
+                if os.path.exists(splash_path):
+                    form.BackgroundImage = Image.FromFile(splash_path)
+                    form.BackgroundImageLayout = ImageLayout.Stretch
+                
+                if hasattr(form, 'Controls') and form.Controls.Count > 0:
+                    wv_ctrl = form.Controls[0]
+                    wv_ctrl.Visible = False
+
+                    def _safety_reveal():
+                        time.sleep(1.8)
+                        try:
+                            form.Invoke(MethodInvoker(lambda: setattr(wv_ctrl, 'Visible', True)))
+                        except Exception:
+                            pass
+                    threading.Thread(target=_safety_reveal, daemon=True).start()
+            except Exception as ex:
+                log.warning(f"Не удалось инициализировать нативный splash: {ex}")
+
+        window.events.shown += _setup_native_splash
 
         webview.start(debug=False, icon=icon_path if os.path.exists(icon_path) else None)
         engine.stop()
