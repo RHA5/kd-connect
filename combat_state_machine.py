@@ -13,6 +13,83 @@ EXCLUDED_MAPS = [
     'tutorial'
 ]
 
+
+class SystemClock:
+    """Системные часы по умолчанию (реальное время)."""
+    def monotonic(self) -> float:
+        return time.monotonic()
+
+    def time(self) -> float:
+        return time.time()
+
+
+class SystemScheduler:
+    """Планировщик по умолчанию на базе threading.Timer."""
+    def schedule(self, delay: float, callback, args=None):
+        timer = threading.Timer(delay, callback, args=args or [])
+        timer.daemon = True
+        timer.start()
+        return timer
+
+
+class TestTimerHandle:
+    """Управляемый дескриптор таймера для офлайн-тестов."""
+    def __init__(self, scheduler, item):
+        self.scheduler = scheduler
+        self.item = item
+        self.cancelled = False
+
+    def cancel(self):
+        self.cancelled = True
+        if self.item in self.scheduler.scheduled_items:
+            self.scheduler.scheduled_items.remove(self.item)
+
+
+class TestClock:
+    """Детерминированные часы и планировщик для офлайн-тестов без sleep и потоков."""
+    def __init__(self, initial_monotonic=1000.0, initial_time=1700000000.0):
+        self._monotonic = float(initial_monotonic)
+        self._time = float(initial_time)
+        self.scheduled_items = []
+
+    def monotonic(self) -> float:
+        return self._monotonic
+
+    def time(self) -> float:
+        return self._time
+
+    def schedule(self, delay: float, callback, args=None):
+        fire_at = self._monotonic + delay
+        item = {
+            "fire_at": fire_at,
+            "callback": callback,
+            "args": args or [],
+            "handle": None
+        }
+        handle = TestTimerHandle(self, item)
+        item["handle"] = handle
+        self.scheduled_items.append(item)
+        self.scheduled_items.sort(key=lambda x: x["fire_at"])
+        return handle
+
+    def advance(self, seconds: float):
+        """Продвигает виртуальное время и запускает созревшие таймеры."""
+        target_monotonic = self._monotonic + seconds
+        self._time += seconds
+
+        while self.scheduled_items:
+            self.scheduled_items.sort(key=lambda x: x["fire_at"])
+            next_item = self.scheduled_items[0]
+            if next_item["fire_at"] <= target_monotonic:
+                self.scheduled_items.pop(0)
+                if not next_item["handle"].cancelled:
+                    self._monotonic = next_item["fire_at"]
+                    next_item["callback"](*next_item["args"])
+            else:
+                break
+        self._monotonic = target_monotonic
+
+
 class CombatStateMachine:
     """
     Конечный автомат сессий и боевых событий Hunt: Showdown 1896.
@@ -21,10 +98,12 @@ class CombatStateMachine:
     Использует асинхронный 2.7-секундный буфер корреляции хайлайтов NVIDIA 
     для компенсации задержки UI CryEngine при анимации гибели.
     """
-    def __init__(self, on_session_start=None, on_session_end=None, on_event=None):
+    def __init__(self, on_session_start=None, on_session_end=None, on_event=None, clock=None, scheduler=None):
         self.on_session_start = on_session_start
         self.on_session_end = on_session_end
         self.on_event = on_event
+        self.clock = clock or SystemClock()
+        self.scheduler = scheduler or (self.clock if hasattr(self.clock, 'schedule') else SystemScheduler())
 
         self.lock = threading.RLock()
         self.session_active = False
@@ -87,13 +166,10 @@ class CombatStateMachine:
 
     def _schedule_reconnect_timeout(self):
         self._cancel_reconnect_timer()
-        elapsed = max(0.0, time.time() - self.match_start_time) if self.match_start_time else 0.0
+        elapsed = max(0.0, self.clock.time() - self.match_start_time) if self.match_start_time else 0.0
         remaining = max(1.0, self.MAX_MATCH_DURATION - elapsed)
         expected_id = self.match_id
-        timer = threading.Timer(remaining, self._on_reconnect_timeout, args=[expected_id])
-        timer.daemon = True
-        self.reconnect_timer = timer
-        timer.start()
+        self.reconnect_timer = self.scheduler.schedule(remaining, self._on_reconnect_timeout, args=[expected_id])
 
     def _on_reconnect_timeout(self, expected_match_id):
         with self.lock:
@@ -113,7 +189,7 @@ class CombatStateMachine:
             self.kills = int(saved.get("kills", 0))
             self.deaths = int(saved.get("deaths", 0))
             self.trades = int(saved.get("trades", 0))
-            self.match_start_time = float(saved.get("start_time", time.time()))
+            self.match_start_time = float(saved.get("start_time", self.clock.time()))
             self.last_match_server_ip = saved.get("server_ip")
             self.last_match_log_id = saved.get("log_id")
             self.was_dead_before_dc = bool(saved.get("was_dead", False))
@@ -332,7 +408,7 @@ class CombatStateMachine:
 
             # 3. Сигнал экрана смерти охотника: Starting/Stopping UI state machine 'death/StateMachine'
             if "Starting UI state machine 'death/StateMachine'" in line:
-                now = time.monotonic()
+                now = self.clock.monotonic()
                 if self.expecting_reconnect_death_ui:
                     self.expecting_reconnect_death_ui = False
                     self.was_dead_before_dc = False
@@ -379,7 +455,7 @@ class CombatStateMachine:
                 self._log_info("[RAW:Game.log] Закрытие death/StateMachine (воскрешение/сброс)")
                 self.death_screen_open = False
                 self.death_screen_paired = False  # Сброс при воскрешении (готов к следующей смерти)
-                self.last_death_screen_close_time = time.monotonic()
+                self.last_death_screen_close_time = self.clock.monotonic()
                 if self.session_active and not self.awaiting_reconnect:
                     # Реальное воскрешение в бою (а не закрытие UI при Alt+F4)
                     self.was_dead_before_dc = False
@@ -405,7 +481,7 @@ class CombatStateMachine:
                     log.info(f"[DECISION] ИГНОРИРОВАНИЕ ХАЙЛАЙТА: Боевой матч не активен (в лобби или меню)")
                     return
 
-                now = time.monotonic()
+                now = self.clock.monotonic()
 
                 # Подавление повторного хайлайта NVIDIA при загрузке на экран смерти после реконнекта
                 if self.expecting_reconnect_death_ui and not self.reconnect_reload_highlight_consumed:
@@ -453,14 +529,12 @@ class CombatStateMachine:
                 # Ожидаем окно подтверждения (1.2 сек)
                 highlight_id = uuid.uuid4().hex
                 log.info(f"[DECISION] КАНДИДАТ НА КИЛЛ: Хайлайт {highlight_id[:8]} поставлен в буфер подтверждения на {self.KILL_CONFIRMATION_TIMEOUT}с")
-                timer = threading.Timer(self.KILL_CONFIRMATION_TIMEOUT, self._on_highlight_timeout, args=[highlight_id])
+                timer = self.scheduler.schedule(self.KILL_CONFIRMATION_TIMEOUT, self._on_highlight_timeout, args=[highlight_id])
                 self.pending_highlights.append({
                     "id": highlight_id,
                     "time": now,
                     "timer": timer
                 })
-                timer.daemon = True
-                timer.start()
 
     def _on_highlight_timeout(self, highlight_id):
         with self.lock:
@@ -479,7 +553,7 @@ class CombatStateMachine:
 
             self.pending_highlights.remove(target)
 
-            now = time.monotonic()
+            now = self.clock.monotonic()
             # Проверяем, не открылся ли неспаренный экран смерти
             if not self.death_screen_paired and (self.death_screen_open or (now - self.last_death_screen_time) <= 2.0):
                 log.info(f"[DECISION] ПОДТВЕРЖДЕНА СМЕРТЬ ПО ТАЙМАУТУ: Хайлайт {highlight_id[:8]} спарен с открывшимся экраном смерти")
@@ -590,8 +664,8 @@ class CombatStateMachine:
         self.awaiting_reconnect = False
         self.returned_to_menu = False
         self.current_map = map_name
-        self.match_id = f"hunt_{int(time.time())}_{uuid.uuid4().hex[:6]}"
-        self.match_start_time = time.time()
+        self.match_id = f"hunt_{int(self.clock.time())}_{uuid.uuid4().hex[:6]}"
+        self.match_start_time = self.clock.time()
         self.kills = 0
         self.deaths = 0
         self.trades = 0
@@ -627,7 +701,7 @@ class CombatStateMachine:
             self._cancel_reconnect_timer()
 
             # Если при выходе остался висящий хайлайт в буфере:
-            now = time.monotonic()
+            now = self.clock.monotonic()
             for p in list(self.pending_highlights):
                 if p.get("timer"):
                     try:
@@ -643,7 +717,7 @@ class CombatStateMachine:
 
             stats = self._get_match_stats()
             stats["reason"] = reason
-            raw_duration = int(time.time() - self.match_start_time) if self.match_start_time else 0
+            raw_duration = int(self.clock.time() - self.match_start_time) if self.match_start_time else 0
             stats["duration_seconds"] = min(self.MAX_MATCH_DURATION, max(0, raw_duration))
 
             self._log_info(f"[MATCH:END] Завершение матча: ID={stats['match_id']}, K={stats['kills']}, D={stats['deaths']}, T={stats['trades']}, Длительность={stats['duration_seconds']}с, Причина='{reason}'")
@@ -678,5 +752,5 @@ class CombatStateMachine:
             "kills": self.kills,
             "deaths": self.deaths,
             "trades": self.trades,
-            "duration": min(self.MAX_MATCH_DURATION, max(0, int(time.time() - self.match_start_time))) if self.match_start_time else 0
+            "duration": min(self.MAX_MATCH_DURATION, max(0, int(self.clock.time() - self.match_start_time))) if self.match_start_time else 0
         }
