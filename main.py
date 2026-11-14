@@ -152,6 +152,10 @@ def is_url_allowed(url, api_base_url):
         if scheme != "https":
             return False
 
+        # Официальные ресурсы NVIDIA (оверлей Highlights)
+        if hostname in ("nvidia.com", "www.nvidia.com"):
+            return True
+
         # Поддержка Telegram
         if hostname in ("t.me", "telegram.me"):
             return True
@@ -719,10 +723,16 @@ class AppApi:
     def apply_update(self, download_url=None, installer_url=None, sha256_setup=None):
         in_active_session = False
         if self.engine:
-            if bool(getattr(self.engine, 'session_active', False)):
-                in_active_session = True
             sm = getattr(self.engine, 'state_machine', None)
             if sm and bool(getattr(sm, 'session_active', False)):
+                in_active_session = True
+            ns = getattr(self.engine, 'network_sync', None)
+            if ns:
+                if bool(getattr(ns, 'current_session_id', None)):
+                    in_active_session = True
+                if bool(getattr(ns, 'manual_conflict', False)):
+                    in_active_session = True
+            if bool(getattr(self.engine, 'session_active', False)):
                 in_active_session = True
         if in_active_session:
             log.warning("[UPDATE:BLOCKED] Попытка обновления во время активного матча или сессии")

@@ -40,6 +40,33 @@ class TestPreviewHtml(unittest.TestCase):
         self.assertIn("startMatchTimer", self.html)
         self.assertIn("stopMatchTimer", self.html)
         self.assertIn("match_started_at", self.html)
+        self.assertIn("handleEndSessionWebsite", self.html)
+
+    def test_dialog_flag_propagation(self):
+        # O1: Проверка передачи обоих флагов через модалки подтверждения
+        # 1. Combat confirm передает forceDiscard и true
+        self.assertTrue(re.search(
+            r'handleConfirmCombatEnd\(\)\s*\{[\s\S]*?executeEndSession\([^,]+,\s*[^,]+,\s*pendingEndSessionParams\.forceDiscard,\s*true\)',
+            self.html
+        ))
+        # 2. Retry pending передает false и forceInCombat
+        self.assertTrue(re.search(
+            r'handleRetryFlushPending\(\)\s*\{[\s\S]*?executeEndSession\([^,]+,\s*[^,]+,\s*false,\s*pendingEndSessionParams\.forceInCombat\)',
+            self.html
+        ))
+        # 3. Discard pending передает true и forceInCombat
+        self.assertTrue(re.search(
+            r'handleConfirmDiscardPending\(\)\s*\{[\s\S]*?executeEndSession\([^,]+,\s*[^,]+,\s*true,\s*pendingEndSessionParams\.forceInCombat\)',
+            self.html
+        ))
+        # 4. openConfirmCombatModal и openConfirmPendingModal принимают и сохраняют флаги
+        self.assertIn("openConfirmCombatModal(adjKills, adjDeaths, forceDiscard = false)", self.html)
+        self.assertIn("openConfirmPendingModal(adjKills, adjDeaths, pendingCount, forceInCombat = false)", self.html)
+
+    def test_tailwind_classes_and_backdrop(self):
+        # S2: backdrop-blur-xs заменен на backdrop-blur-sm
+        self.assertNotIn("backdrop-blur-xs", self.html)
+        self.assertIn("backdrop-blur-sm", self.html)
 
 if __name__ == "__main__":
     unittest.main()

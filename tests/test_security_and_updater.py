@@ -25,10 +25,14 @@ class TestSecurityAndUpdater(unittest.TestCase):
         self.assertTrue(main.is_url_allowed("http://localhost:3000/api", base_api))
         self.assertTrue(main.is_url_allowed("http://127.0.0.1:8000/test", base_api))
         self.assertTrue(main.is_url_allowed("https://localhost:3000", base_api))
+        self.assertTrue(main.is_url_allowed("https://www.nvidia.com/ru-ru/software/nvidia-app/", base_api))
+        self.assertTrue(main.is_url_allowed("https://nvidia.com/drivers", base_api))
 
         # Rejected URLs
         self.assertFalse(main.is_url_allowed("http://kdmetrika.ru/not-https", base_api))
+        self.assertFalse(main.is_url_allowed("http://www.nvidia.com/insecure", base_api))
         self.assertFalse(main.is_url_allowed("https://evil.com/phishing", base_api))
+        self.assertFalse(main.is_url_allowed("https://fake-nvidia.com", base_api))
         self.assertFalse(main.is_url_allowed("javascript:alert(1)", base_api))
         self.assertFalse(main.is_url_allowed("file:///C:/windows/system32/cmd.exe", base_api))
         self.assertFalse(main.is_url_allowed("https://not-kdmetrika.ru", base_api))
@@ -58,19 +62,41 @@ class TestSecurityAndUpdater(unittest.TestCase):
     def test_apply_update_blocks_during_session(self):
         api = main.AppApi()
         mock_engine = MagicMock()
-        mock_engine.session_active = True
+        mock_engine.session_active = False
         mock_engine.state_machine.session_active = False
+        mock_engine.network_sync.current_session_id = "test-session-123"
+        mock_engine.network_sync.manual_conflict = False
         api.set_engine(mock_engine)
 
-        res = api.apply_update("https://kdmetrika.ru/downloads/KD-Connect-Setup.exe")
-        self.assertFalse(res.get("success"))
-        self.assertIn("активного матча или сессии", res.get("error"))
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            res = api.apply_update("https://kdmetrika.ru/downloads/KD-Connect-Setup.exe")
+            self.assertFalse(res.get("success"))
+            self.assertIn("активного матча или сессии", res.get("error"))
+            mock_urlopen.assert_not_called()
+
+        # Также проверяем блокировку при активном бое в state_machine
+        mock_engine.network_sync.current_session_id = None
+        mock_engine.state_machine.session_active = True
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            res2 = api.apply_update("https://kdmetrika.ru/downloads/KD-Connect-Setup.exe")
+            self.assertFalse(res2.get("success"))
+            mock_urlopen.assert_not_called()
+
+        # И при manual_conflict
+        mock_engine.state_machine.session_active = False
+        mock_engine.network_sync.manual_conflict = True
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            res3 = api.apply_update("https://kdmetrika.ru/downloads/KD-Connect-Setup.exe")
+            self.assertFalse(res3.get("success"))
+            mock_urlopen.assert_not_called()
 
     def test_apply_update_sha256_mismatch_fails(self):
         api = main.AppApi()
         mock_engine = MagicMock()
         mock_engine.session_active = False
         mock_engine.state_machine.session_active = False
+        mock_engine.network_sync.current_session_id = None
+        mock_engine.network_sync.manual_conflict = False
         api.set_engine(mock_engine)
 
         # Создаем временный файл-заглушку с MZ
