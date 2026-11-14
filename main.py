@@ -348,6 +348,45 @@ class AppApi:
             log.error(f"[CLEAR:ERR] {e}")
             return {"success": False, "error": str(e)}
 
+    def start_window_drag(self):
+        if sys.platform != 'win32':
+            return
+        try:
+            window = webview.windows[0] if webview.windows else None
+            form = getattr(window, 'native', None) if window else None
+            hwnd = None
+            if form is not None and hasattr(form, 'Handle'):
+                try:
+                    hwnd = int(form.Handle)
+                except Exception:
+                    hwnd = None
+
+            if not hwnd:
+                import ctypes
+                hwnd = ctypes.windll.user32.FindWindowW(None, "KD Connect")
+
+            if not hwnd:
+                return
+
+            def _perform_drag():
+                import ctypes
+                ctypes.windll.user32.ReleaseCapture()
+                ctypes.windll.user32.SendMessageW(hwnd, 0xA1, 2, 0)
+
+            if form is not None and hasattr(form, 'Invoke'):
+                try:
+                    from System.Windows.Forms import MethodInvoker
+                    form.Invoke(MethodInvoker(_perform_drag))
+                except Exception:
+                    try:
+                        form.Invoke(_perform_drag)
+                    except Exception:
+                        _perform_drag()
+            else:
+                _perform_drag()
+        except Exception as e:
+            log.debug(f"[DRAG] start_window_drag exception: {e}")
+
     def minimize(self):
         if webview.windows:
             webview.windows[0].minimize()
@@ -674,58 +713,6 @@ class AppApi:
             )
         except Exception as e:
             return f"\n=== ДИАГНОСТИКА ОШИБКА: {e} ===\n\n"
-
-    def send_report(self, message="", include_diagnostics=True):
-        config = config_manager.load_config()
-        token = config.get("sync_token", "").strip()
-        if not token:
-            return {"success": False, "error": "Привяжите токен в настройках перед отправкой отчета"}
-
-        api_url = f"{_get_api_base_url()}/api/tracker/report"
-        if include_diagnostics:
-            diagnostics = self._get_system_diagnostics()
-            raw_logs = logger.get_recent_logs()
-            if len(raw_logs) > 500000:
-                raw_logs = raw_logs[-500000:]
-            recent_logs = diagnostics + raw_logs
-        else:
-            recent_logs = ""
-
-        payload = {
-            "sync_token": token,
-            "message": message or "Пользовательский отчет об ошибке из KD Connect",
-            "log": recent_logs
-        }
-        data_bytes = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(
-            api_url,
-            data=data_bytes,
-            headers={
-                "Content-Type": "application/json",
-                "x-sync-token": token
-            },
-            method="POST"
-        )
-        try:
-            log.info("Отправка отчета разработчикам...")
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                res = json.loads(resp.read().decode())
-                if res.get("success"):
-                    log.info("Отчет успешно отправлен на сервер")
-                    return {"success": True, "message": res.get("message", "Отчет успешно доставлен")}
-                log.warning(f"Сервер отклонил отчет: {res.get('error')}")
-                return {"success": False, "error": res.get("error", "Ошибка отправки отчета")}
-        except urllib.error.HTTPError as e:
-            try:
-                err_data = json.loads(e.read().decode())
-                err_msg = err_data.get("error", f"Ошибка HTTP {e.code}")
-            except Exception:
-                err_msg = f"Ошибка сервера ({e.code})"
-            log.error(f"HTTP ошибка при отправке отчета: {err_msg}")
-            return {"success": False, "error": err_msg}
-        except Exception as ex:
-            log.error(f"Сбой соединения при отправке отчета: {ex}")
-            return {"success": False, "error": "Сервер недоступен (проверьте подключение)"}
 
     def get_version(self):
         return APP_VERSION
