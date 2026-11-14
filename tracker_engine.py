@@ -215,11 +215,10 @@ class TrackerEngine:
             ok, res = self.network_sync.send_match_pulse(summary)
             if ok and isinstance(res, dict):
                 summary.update(res)
+            # 2. И только ПОСЛЕ успешной фиксации в очереди очищаем recovery-файл
+            config_manager.clear_recovery_state()
         except Exception as e:
-            log.error(f"Ошибка при передаче матча в NetworkSync: {e}")
-
-        # 2. И только ПОСЛЕ фиксации в очереди очищаем recovery-файл (исключая потерю при сбое в момент выхода)
-        config_manager.clear_recovery_state()
+            log.error(f"[RECOVERY:KEEP] Ошибка при передаче матча в NetworkSync: {e}. Файл восстановления сохранен на диске.")
 
         # 3. Немедленно сбрасываем статус сессии в лобби (обнуление таймера матча на сайте)
         try:

@@ -217,6 +217,27 @@ class TestPersistenceQueue(unittest.TestCase):
         finally:
             engine.stop()
 
+    def test_recovery_file_kept_on_send_match_pulse_exception(self):
+        """Проверка O1: при исключении в send_match_pulse match_recovery.json НЕ удаляется."""
+        engine = TrackerEngine()
+        try:
+            # Создаем файл recovery
+            config_manager.save_recovery_state({"match_id": "mid_crash", "kills": 3, "deaths": 0})
+            self.assertTrue(os.path.exists(config_manager.RECOVERY_FILE))
+
+            # Имитируем падение send_match_pulse с неожиданным исключением
+            with patch.object(engine.network_sync, "send_match_pulse", side_effect=RuntimeError("Disk write failed")):
+                summary = {"match_id": "mid_crash", "kills": 3, "deaths": 0, "duration_seconds": 120}
+                engine._handle_session_end(summary)
+
+            # Файл восстановления ОБЯЗАН остаться на диске!
+            self.assertTrue(os.path.exists(config_manager.RECOVERY_FILE), "match_recovery.json должен остаться на месте!")
+            saved = config_manager.load_recovery_state()
+            self.assertIsNotNone(saved)
+            self.assertEqual(saved.get("match_id"), "mid_crash")
+        finally:
+            engine.stop()
+
     # -------------------------------------------------------------------------
     # 8. Стресс-тест: убийство процесса с очередью -> перезапуск -> доставка
     # -------------------------------------------------------------------------
