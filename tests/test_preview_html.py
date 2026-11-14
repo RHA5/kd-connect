@@ -95,6 +95,16 @@ class TestPreviewHtml(unittest.TestCase):
         self.assertIn("ReleaseCapture", self.main_code)
         self.assertIn("SendMessageW", self.main_code)
 
+    def test_match_timer_rounding(self):
+        # startMatchTimer rounds input and difference with Math.floor
+        self.assertIn("matchStartTimeUnix = Math.floor(startTimeOrElapsed);", self.html)
+        self.assertIn("diffSec = Math.max(0, Math.floor(curNow - matchStartTimeUnix));", self.html)
+
+        # stopMatchTimer rounds finalDur with Math.floor
+        self.assertIn("const total = Math.max(0, Math.floor(Number(finalDur) || 0));", self.html)
+        self.assertIn("const mm = Math.floor(total / 60).toString().padStart(2, '0');", self.html)
+        self.assertIn("const ss = (total % 60).toString().padStart(2, '0');", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1955,15 +1955,15 @@ ${res.path}`);
       if (matchTimerInterval) clearInterval(matchTimerInterval);
       const nowSec = Math.floor(Date.now() / 1000);
       if (typeof startTimeOrElapsed === 'number' && startTimeOrElapsed > 1000000000) {
-        matchStartTimeUnix = startTimeOrElapsed;
+        matchStartTimeUnix = Math.floor(startTimeOrElapsed);
       } else {
-        const elapsed = (typeof startTimeOrElapsed === 'number') ? startTimeOrElapsed : 0;
+        const elapsed = (typeof startTimeOrElapsed === 'number') ? Math.floor(startTimeOrElapsed) : 0;
         matchStartTimeUnix = nowSec - elapsed;
       }
       const el = document.getElementById('match-card-time');
       const updateMatchTime = () => {
         const curNow = Math.floor(Date.now() / 1000);
-        const diffSec = Math.max(0, curNow - matchStartTimeUnix);
+        const diffSec = Math.max(0, Math.floor(curNow - matchStartTimeUnix));
         const mm = Math.floor(diffSec / 60).toString().padStart(2, '0');
         const ss = (diffSec % 60).toString().padStart(2, '0');
         if (el) el.innerText = mm + ':' + ss;
@@ -1992,8 +1992,9 @@ ${res.path}`);
       const el = document.getElementById('match-card-time');
       if (el) {
         if (finalDur !== null && finalDur !== undefined) {
-          const mm = Math.floor(finalDur / 60).toString().padStart(2, '0');
-          const ss = (finalDur % 60).toString().padStart(2, '0');
+          const total = Math.max(0, Math.floor(Number(finalDur) || 0));
+          const mm = Math.floor(total / 60).toString().padStart(2, '0');
+          const ss = (total % 60).toString().padStart(2, '0');
           el.innerText = mm + ':' + ss;
         } else {
           el.innerText = '--:--';
