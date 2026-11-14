@@ -4,6 +4,7 @@ import json
 APP_DATA_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'KDConnect')
 CONFIG_FILE = os.path.join(APP_DATA_DIR, 'config.json')
 RECOVERY_FILE = os.path.join(APP_DATA_DIR, 'match_recovery.json')
+PENDING_MATCHES_FILE = os.path.join(APP_DATA_DIR, 'pending_matches.json')
 
 DEFAULT_CONFIG = {
     "sync_token": "",
@@ -82,3 +83,35 @@ def clear_recovery_state():
             os.remove(RECOVERY_FILE)
     except Exception:
         pass
+
+def save_pending_matches(matches):
+    ensure_app_data_dir()
+    try:
+        tmp_path = PENDING_MATCHES_FILE + ".tmp"
+        with open(tmp_path, 'w', encoding='utf-8') as f:
+            json.dump(matches, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, PENDING_MATCHES_FILE)
+        return True
+    except Exception:
+        return False
+
+def load_pending_matches():
+    ensure_app_data_dir()
+    if not os.path.exists(PENDING_MATCHES_FILE):
+        return []
+    try:
+        with open(PENDING_MATCHES_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+    except Exception:
+        pass
+    return []
+
+def clear_pending_matches_file():
+    try:
+        if os.path.exists(PENDING_MATCHES_FILE):
+            os.remove(PENDING_MATCHES_FILE)
+    except Exception:
+        pass
+

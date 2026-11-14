@@ -373,6 +373,8 @@ class AppApi:
                 data = json.loads(resp.read().decode('utf-8'))
                 if data.get("success"):
                     log.info(f"[SESSION:START_OK] Сессия создана: ID={data.get('session_id')}, пользователь='{data.get('username')}', начальные K/D={data.get('base_kd')}")
+                    if self.engine and hasattr(self.engine, 'network_sync'):
+                        self.engine.network_sync.set_current_session_id(data.get('session_id'))
                 else:
                     log.warning(f"[SESSION:START_ERR] Ошибка создания: {data.get('error')}")
                 return data
@@ -388,12 +390,34 @@ class AppApi:
             log.error(f"[SESSION:START_CONN_ERR] {ex}")
             return {"success": False, "error": f"Сбой соединения: {ex}"}
 
-    def end_session(self, adjusted_kills=None, adjusted_deaths=None):
+    def end_session(self, adjusted_kills=None, adjusted_deaths=None, force_discard=False, force_in_combat=False):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
             log.warning("[SESSION:END_FAIL] Попытка завершения сессии без sync_token")
             return {"success": False, "error": "Токен не найден"}
+
+        # 1. Предупреждение при попытке завершить сессию во время идущего матча («В бою»)
+        if self.engine and hasattr(self.engine, 'state_machine') and getattr(self.engine.state_machine, "session_active", False) and not force_in_combat:
+            return {
+                "success": False,
+                "confirm_in_combat": True,
+                "error": "Матч ещё идёт. Завершить сессию? Статистика текущей катки не попадёт в неё."
+            }
+
+        # 2. Принудительный flush очереди с таймаутом 10 с
+        if self.engine and hasattr(self.engine, 'network_sync'):
+            remaining = self.engine.network_sync.flush_pending(timeout=10.0)
+            if remaining > 0 and not force_discard:
+                return {
+                    "success": False,
+                    "confirm_pending_matches": True,
+                    "pending_matches_count": remaining,
+                    "error": f"В очереди {remaining} недоставленных матчей. Повторить попытку или завершить без них?"
+                }
+            if force_discard:
+                # Осознанная очистка очереди по кнопке «Завершить без них»
+                self.engine.network_sync.clear_pending_matches()
 
         api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         payload = {"type": "session_end"}
@@ -404,9 +428,6 @@ class AppApi:
         masked_tok = logger.mask_token(token)
         log.info(f"[SESSION:END_REQ] Завершение сессии [tok={masked_tok}, adjK={adjusted_kills}, adjD={adjusted_deaths}]")
         try:
-            # Очищаем буфер очереди, чтобы старые события гарантированно не перетекли в следующую сессию
-            self.clear_pending_matches()
-
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
                 api_url,
@@ -418,6 +439,9 @@ class AppApi:
                 data = json.loads(resp.read().decode('utf-8'))
                 if data.get("success"):
                     log.info(f"[SESSION:END_OK] Сессия завершена: ID={data.get('session_id')}, матчей={data.get('matches_count')}, киллов={data.get('kills')}, смертей={data.get('deaths')}, итоговые в лобби={data.get('total_kills')}/{data.get('total_deaths')}")
+                    if self.engine and hasattr(self.engine, 'network_sync'):
+                        self.engine.network_sync.set_current_session_id(None)
+                        self.engine.network_sync.clear_pending_matches()
                 else:
                     log.warning(f"[SESSION:END_ERR] Ошибка завершения: {data.get('error')}")
                 return data
@@ -431,6 +455,7 @@ class AppApi:
             return {"success": False, "error": err_msg}
         except Exception as ex:
             log.error(f"[SESSION:END_CONN_ERR] {ex}")
+            # Сетевая ошибка — очередь НЕ очищается, сессия остаётся открытой для повтора
             return {"success": False, "error": f"Сбой соединения: {ex}"}
 
     def check_active_session(self):
@@ -444,9 +469,14 @@ class AppApi:
             with urllib.request.urlopen(req, timeout=3) as resp:
                 resp_data = json.loads(resp.read().decode())
                 if resp_data.get("success"):
+                    active_sess = resp_data.get("active_session")
+                    if self.engine and hasattr(self.engine, 'network_sync'):
+                        sess_id = active_sess.get("session_id") if active_sess else None
+                        self.engine.network_sync.set_current_session_id(sess_id)
+                        self.engine.network_sync.set_manual_conflict(resp_data.get("manual_conflict", False))
                     return {
                         "success": True,
-                        "active_session": resp_data.get("active_session"),
+                        "active_session": active_sess,
                         "manual_conflict": resp_data.get("manual_conflict", False),
                         "ask_mood_on_start": resp_data.get("ask_mood_on_start", False),
                         "base_kills": resp_data.get("base_kills", 0),

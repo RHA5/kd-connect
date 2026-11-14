@@ -193,13 +193,11 @@ class TrackerEngine:
         duration = int(summary.get("duration_seconds", 0))
         log.info(f"Окончание матча: Киллы={kills}, Смерти={deaths}, Длительность={duration}с")
 
-        # Штатный выход — очищаем файл аварийного восстановления
-        config_manager.clear_recovery_state()
-
         # Защита от спама нулевыми матчами (реконнекты Crytek, сбои, Alt+F4):
         # Если матч пустой (0 киллов и 0 смертей), в базу данных его не отправляем
         if kills == 0 and deaths == 0:
             log.info("Матч завершился без фрагов и смертей (0K, 0D). Пропуск отправки в базу данных.")
+            config_manager.clear_recovery_state()
             try:
                 self.network_sync.send_match_state_pulse("in_lobby", 0, 0)
             except Exception as e:
@@ -212,7 +210,7 @@ class TrackerEngine:
                     pass
             return
 
-        # 1. Отправляем импульс завершения матча (сохранение в базе)
+        # 1. Сначала гарантированно помещаем завершённый матч в персистентную очередь на диск!
         try:
             ok, res = self.network_sync.send_match_pulse(summary)
             if ok and isinstance(res, dict):
@@ -220,7 +218,10 @@ class TrackerEngine:
         except Exception as e:
             log.error(f"Ошибка при передаче матча в NetworkSync: {e}")
 
-        # 2. Немедленно сбрасываем статус сессии в лобби (обнуление таймера матча на сайте)
+        # 2. И только ПОСЛЕ фиксации в очереди очищаем recovery-файл (исключая потерю при сбое в момент выхода)
+        config_manager.clear_recovery_state()
+
+        # 3. Немедленно сбрасываем статус сессии в лобби (обнуление таймера матча на сайте)
         try:
             self.network_sync.send_match_state_pulse("in_lobby", 0, 0)
         except Exception as e:
