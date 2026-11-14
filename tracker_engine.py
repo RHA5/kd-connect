@@ -41,12 +41,12 @@ class TrackerEngine:
         self.running = False
         try:
             self.state_machine._cancel_reconnect_timer()
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning(f"[ENGINE:STOP_ERR] Ошибка остановки таймера реконнекта: {e}")
         try:
             self.network_sync.stop()
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning(f"[ENGINE:STOP_ERR] Ошибка остановки network_sync: {e}")
 
     def _warmup_lobby_mode(self, log_path):
         """Быстро пробегает лог с начала для точного восстановления активного лобби."""
@@ -58,8 +58,8 @@ class TrackerEngine:
                 for line in f:
                     if "DeepLinkingTarget" in line or "SelectDeepLinkingTarget" in line or "[LocalMission" in line:
                         self.state_machine.feed_game_log_line(line)
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning(f"[ENGINE:WARMUP_ERR] Ошибка чтения лога при прогреве: {e}")
         finally:
             self.state_machine.is_warming_up = False
 
@@ -161,8 +161,8 @@ class TrackerEngine:
                     for line in new_nv_lines:
                         self.state_machine.feed_nvidia_line(line)
 
-            except Exception:
-                pass
+            except Exception as e:
+                log.error(f"[ENGINE:LOOP_ERR] Ошибка в цикле обработки логов: {e}", exc_info=True)
 
             time.sleep(0.15)
 
@@ -173,8 +173,8 @@ class TrackerEngine:
         self._save_recovery_snapshot(stats)
         try:
             self.network_sync.send_match_state_pulse("in_combat", 0, 0)
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning(f"[ENGINE:STATE_ERR] Ошибка отправки match_state 'in_combat': {e}")
         if self.on_session_change:
             try:
                 self.on_session_change(True, {
@@ -184,8 +184,8 @@ class TrackerEngine:
                     "deaths": 0,
                     "start_time": time.time() - int(stats.get("duration", 0) or 0)
                 })
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug(f"[ENGINE:UI_CALLBACK_ERR] on_session_change (start): {e}")
 
     def _handle_session_end(self, summary):
         kills = int(summary.get("kills", 0))
@@ -206,8 +206,8 @@ class TrackerEngine:
             if self.on_session_change:
                 try:
                     self.on_session_change(False, summary)
-                except Exception:
-                    pass
+                except Exception as e:
+                    log.debug(f"[ENGINE:UI_CALLBACK_ERR] on_session_change (empty): {e}")
             return
 
         # 1. Сначала гарантированно помещаем завершённый матч в персистентную очередь на диск!
@@ -229,8 +229,8 @@ class TrackerEngine:
         if self.on_session_change:
             try:
                 self.on_session_change(False, summary)
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug(f"[ENGINE:UI_CALLBACK_ERR] on_session_change (end): {e}")
 
     def _handle_combat_event(self, event_type, count, current_stats):
         # Обновляем состояние на диске для надежного восстановления при краше или сбое света
@@ -247,8 +247,8 @@ class TrackerEngine:
                     current_stats.get("kills", 0),
                     current_stats.get("deaths", 0)
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning(f"[ENGINE:STATE_ERR] Ошибка отправки match_state при реконнекте: {e}")
             if self.on_session_change:
                 try:
                     self.on_session_change(True, {
@@ -258,8 +258,8 @@ class TrackerEngine:
                         "deaths": current_stats.get("deaths", 0),
                         "start_time": time.time() - current_stats.get("duration", 0)
                     })
-                except Exception:
-                    pass
+                except Exception as e:
+                    log.debug(f"[ENGINE:UI_CALLBACK_ERR] on_session_change (reconnect): {e}")
             return
 
         log.info(f"Боевое событие: {event_type} x{count}. Текущий счет: {current_stats}")
@@ -269,10 +269,10 @@ class TrackerEngine:
                 current_stats.get("kills", 0),
                 current_stats.get("deaths", 0)
             )
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning(f"[ENGINE:STATE_ERR] Ошибка отправки match_state боевого события: {e}")
         if self.on_combat_event:
             try:
                 self.on_combat_event(event_type, count, current_stats)
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug(f"[ENGINE:UI_CALLBACK_ERR] on_combat_event: {e}")

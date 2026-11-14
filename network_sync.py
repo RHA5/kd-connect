@@ -210,8 +210,8 @@ class NetworkSync:
 
             try:
                 self._post_payload(payload)
-            except Exception:
-                pass
+            except Exception as e:
+                log.warning(f"[NET:STATE_WORKER_ERR] Ошибка отправки статуса {payload.get('type')}: {e}")
             finally:
                 self.state_queue.task_done()
 

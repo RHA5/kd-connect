@@ -11,6 +11,7 @@ class LogTailer:
         self.filepath = filepath
         self.last_pos = 0
         self.last_tail_bytes = b""
+        self._remainder_bytes = b""
         if filepath and os.path.exists(filepath):
             if start_at_end:
                 try:
@@ -23,6 +24,7 @@ class LogTailer:
         self.filepath = filepath
         self.last_pos = 0
         self.last_tail_bytes = b""
+        self._remainder_bytes = b""
         if filepath and os.path.exists(filepath):
             if start_at_end:
                 try:
@@ -56,6 +58,7 @@ class LogTailer:
         if current_size < self.last_pos:
             self.last_pos = 0
             self.last_tail_bytes = b""
+            self._remainder_bytes = b""
 
         # 2. Сверка 64-байтового хвоста: если размер тот же или больше, но байты по старому смещению не совпадают
         elif self.last_pos > 0 and self.last_tail_bytes:
@@ -69,6 +72,7 @@ class LogTailer:
                             # Файл был перезаписан с нуля другим содержимым при перезапуске игры
                             self.last_pos = 0
                             self.last_tail_bytes = b""
+                            self._remainder_bytes = b""
             except Exception:
                 pass
 
@@ -77,16 +81,32 @@ class LogTailer:
 
         new_lines = []
         try:
-            # В Windows CRT вызов open('r') по умолчанию открывает файл с FILE_SHARE_READ | FILE_SHARE_WRITE
-            with open(self.filepath, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(self.filepath, 'rb') as f:
                 f.seek(self.last_pos)
-                new_lines = f.readlines()
+                raw_chunk = f.read()
                 self.last_pos = f.tell()
+
+            if raw_chunk:
+                combined = self._remainder_bytes + raw_chunk
+                parts = combined.split(b'\n')
+                # Последний кусок — незавершённый остаток строки (до следующего перевода строки)
+                self._remainder_bytes = parts[-1]
+                # Обрабатываем все полные строки
+                for raw_line in parts[:-1]:
+                    if raw_line.endswith(b'\r'):
+                        raw_line = raw_line[:-1]
+                    try:
+                        decoded = raw_line.decode('utf-8', errors='replace').strip()
+                        if decoded:
+                            new_lines.append(decoded)
+                    except Exception:
+                        pass
+
             self._update_tail_bytes()
         except Exception:
             pass
 
-        return [line.rstrip('\r\n') for line in new_lines if line.strip()]
+        return new_lines
 
 
 class DynamicNvidiaLogTailer:

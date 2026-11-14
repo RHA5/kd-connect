@@ -39,10 +39,10 @@ WizardImageStretch=yes
 AppMutex=Local\KDConnectSingleInstanceMutex
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=0.10.3.0
+VersionInfoVersion=0.10.6.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion=0.10.3.0
+VersionInfoProductVersion=0.10.6.0
 VersionInfoDescription=Установщик {#MyAppName}
 VersionInfoCopyright=Copyright (C) 2026 RHA5 (KD Metrika)
 
@@ -76,7 +76,6 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Check: Sh
 Filename: "{app}\{#MyAppExeName}"; Description: "Запустить {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{userappdata}\KDConnect"
 Type: filesandordirs; Name: "{app}"
 
 [Code]
@@ -100,23 +99,8 @@ begin
   Result := DesktopShortcutCheck.Checked;
 end;
 
-procedure CloseRunningTracker;
-var
-  ResultCode: Integer;
-begin
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-end;
-
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  CloseRunningTracker;
+  // Встроенный механизм CloseApplications=yes мягко запрашивает завершение через AppMutex
   Result := '';
-end;
-
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-begin
-  if CurUninstallStep = usUninstall then
-  begin
-    CloseRunningTracker;
-  end;
 end;

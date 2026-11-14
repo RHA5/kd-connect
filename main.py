@@ -31,6 +31,52 @@ import logger
 from log_tailer import LogTailer, DynamicNvidiaLogTailer
 from tracker_engine import TrackerEngine
 
+import faulthandler
+import traceback
+import threading
+
+CRASH_LOG_PATH = os.path.join(config_manager.APP_DATA_DIR, 'crash.log')
+
+def _write_crash_record(header, err_text):
+    try:
+        config_manager.ensure_app_data_dir()
+        with open(CRASH_LOG_PATH, 'a', encoding='utf-8') as f:
+            f.write(f"\n=== {header} ===\n{err_text}\n" + "=" * 50 + "\n")
+    except Exception:
+        pass
+
+def setup_crash_handlers():
+    config_manager.ensure_app_data_dir()
+    try:
+        _crash_f = open(CRASH_LOG_PATH, 'a', encoding='utf-8')
+        faulthandler.enable(_crash_f)
+    except Exception:
+        pass
+
+    def _sys_excepthook(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        ts = time.strftime('%Y-%m-%d %H:%M:%S')
+        tname = threading.current_thread().name
+        err_msg = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        _write_crash_record(f"CRASH: {ts} | Thread: {tname} (Main)", err_msg)
+        log.critical(f"Фатальный сбой приложения:\n{err_msg}")
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+    sys.excepthook = _sys_excepthook
+
+    def _thread_excepthook(args):
+        if issubclass(args.exc_type, KeyboardInterrupt):
+            return
+        ts = time.strftime('%Y-%m-%d %H:%M:%S')
+        tname = args.thread.name if args.thread else "UnknownThread"
+        err_msg = "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))
+        _write_crash_record(f"THREAD CRASH: {ts} | Thread: {tname}", err_msg)
+        log.critical(f"Фатальный сбой в потоке {tname}:\n{err_msg}")
+
+    threading.excepthook = _thread_excepthook
+
 log = logger.get_logger("Main")
 
 
@@ -843,6 +889,8 @@ def get_asset_path(filename):
 
 
 if __name__ == '__main__':
+    setup_crash_handlers()
+
     # 1. Проверка наличия WebView2 Runtime (п. 29)
     if not is_webview2_available():
         if sys.platform == 'win32':
@@ -955,7 +1003,6 @@ if __name__ == '__main__':
         webview.start(debug=False, icon=icon_path if os.path.exists(icon_path) else None)
         engine.stop()
     except Exception as e:
-        crash_path = os.path.join(os.path.dirname(sys.executable), 'crash.log')
-        with open(crash_path, 'w', encoding='utf-8') as f:
-            import traceback
-            f.write(traceback.format_exc())
+        ts = time.strftime('%Y-%m-%d %H:%M:%S')
+        _write_crash_record(f"MAIN CRASH: {ts}", traceback.format_exc())
+        log.critical(f"Фатальный сбой в main(): {e}")

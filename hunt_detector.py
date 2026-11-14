@@ -60,36 +60,61 @@ def parse_library_folders(steam_path):
 
     return libraries
 
+def get_fixed_drives():
+    """
+    Быстрый перебор дисков: возвращает список букв только локальных фиксированных дисков (DRIVE_FIXED=3, DRIVE_RAMDISK=6).
+    Исключает сетевые диски (DRIVE_REMOTE=4), оптические приводы (DRIVE_CDROM=5) и съемные носители (DRIVE_REMOVABLE=2).
+    """
+    if sys.platform != 'win32':
+        return ["C"]
+
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        bitmask = kernel32.GetLogicalDrives()
+        fixed = []
+        for i in range(26):
+            if bitmask & (1 << i):
+                drive_letter = chr(ord('A') + i)
+                root_path = f"{drive_letter}:\\"
+                # 3 = DRIVE_FIXED, 6 = DRIVE_RAMDISK
+                if kernel32.GetDriveTypeW(root_path) in (3, 6):
+                    fixed.append(drive_letter)
+        return fixed or ["C"]
+    except Exception:
+        return ["C", "D", "E"]
+
 def get_all_steam_libraries():
     libraries = []
     steam_roots = get_steam_registry_roots()
-    
-    # Common standard fallbacks if registry was missing or cleaned
-    fallback_roots = [
-        r"C:\Program Files (x86)\Steam",
-        r"C:\Steam",
-        r"D:\Steam",
-        r"D:\steam1",
-        r"E:\Steam",
-        r"E:\SteamLibrary"
-    ]
-    for fb in fallback_roots:
-        if os.path.exists(fb) and fb not in steam_roots:
-            steam_roots.append(fb)
 
+    # 1. Библиотеки из реестра Steam
     for root in steam_roots:
         parsed = parse_library_folders(root)
         for lib in parsed:
             if lib not in libraries:
                 libraries.append(lib)
 
-    # Check drive letters for common steam libraries (e.g. D:\SteamLibrary)
-    for drive in ["C", "D", "E", "F", "G"]:
-        for common_folder in ["SteamLibrary", "steam1", "Games\\SteamLibrary", "Steam"]:
-            cand = f"{drive}:\\{common_folder}"
+    # 2. Быстрый поиск только по известным путям на локальных фиксированных дисках
+    known_subdirs = [
+        "Steam",
+        "SteamLibrary",
+        "Program Files (x86)\\Steam",
+        "Program Files\\Steam",
+        "Games\\SteamLibrary",
+        "Games\\Steam",
+        "steam1"
+    ]
+    for drive in get_fixed_drives():
+        for sub in known_subdirs:
+            cand = f"{drive}:\\{sub}"
             norm_cand = os.path.normpath(cand)
             if os.path.exists(norm_cand) and norm_cand not in libraries:
                 libraries.append(norm_cand)
+                # Если в этой папке лежит libraryfolders.vdf, также парсим её
+                for extra_lib in parse_library_folders(norm_cand):
+                    if extra_lib not in libraries:
+                        libraries.append(extra_lib)
 
     return libraries
 
