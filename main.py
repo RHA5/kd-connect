@@ -3,6 +3,7 @@ import re
 import sys
 import json
 import time
+import hashlib
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -122,6 +123,80 @@ def _enable_taskbar_minimize(title="KD Connect"):
             user32.SetWindowLongW(hwnd, GWL_STYLE, current_style | WS_MINIMIZEBOX | WS_SYSMENU)
     except Exception:
         pass
+
+
+def _format_token_error(error_str, http_code=None):
+    err = (error_str or "").lower()
+    if any(k in err for k in ["недействительный токен", "не найден", "invalid token", "not found"]):
+        return "Неверный токен синхронизации"
+    if any(k in err for k in ["роль", "tester", "superadmin", "роли"]):
+        return "Доступ ограничен (требуется роль бета-тестера)"
+    if http_code in (401, 403):
+        return "Доступ ограничен или неверный токен"
+    if any(k in err for k in ["timeout", "сервер недоступен", "connection", "500", "502", "503", "504"]):
+        return "Сервер синхронизации временно недоступен"
+    return error_str or "Ошибка проверки токена"
+
+
+def is_url_allowed(url, api_base_url):
+    try:
+        parsed = urllib.parse.urlparse(url)
+        scheme = parsed.scheme.lower()
+        hostname = (parsed.hostname or "").lower()
+
+        # Localhost allowlist (может быть http или https)
+        if hostname in ("localhost", "127.0.0.1"):
+            return scheme in ("http", "https")
+
+        # Все внешние URL строго HTTPS
+        if scheme != "https":
+            return False
+
+        # Поддержка Telegram
+        if hostname in ("t.me", "telegram.me"):
+            return True
+
+        # Базовый домен API и его поддомены
+        base_parsed = urllib.parse.urlparse(api_base_url)
+        base_host = (base_parsed.hostname or "").lower()
+        if base_host and (hostname == base_host or hostname.endswith("." + base_host)):
+            return True
+
+        return False
+    except Exception:
+        return False
+
+
+def is_webview2_available():
+    if sys.platform != 'win32':
+        return True
+    try:
+        import winreg
+        guids = [
+            '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+            '{F3017226-9D4A-4474-9A14-9242E6018E60}',
+            '{56EB18F8-B008-4CBD-B6D2-8C97FE7E9062}',
+        ]
+        roots = [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]
+        subpaths = [
+            r'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients',
+            r'SOFTWARE\Microsoft\EdgeUpdate\Clients',
+            r'Software\WOW6432Node\Microsoft\EdgeUpdate\Clients',
+            r'Software\Microsoft\EdgeUpdate\Clients',
+        ]
+        for root in roots:
+            for subpath in subpaths:
+                for guid in guids:
+                    try:
+                        with winreg.OpenKey(root, f"{subpath}\\{guid}") as k:
+                            val, _ = winreg.QueryValueEx(k, 'pv')
+                            if val and val != '0.0.0.0':
+                                return True
+                    except Exception:
+                        pass
+        return False
+    except Exception:
+        return False
 
 
 class AppApi:
@@ -277,7 +352,8 @@ class AppApi:
             "username": "",
             "token": token,
             "active_session": None,
-            "manual_conflict": False
+            "manual_conflict": False,
+            "error": ""
         }
         if token:
             api_url = f"{_get_api_base_url()}/api/tracker/pulse"
@@ -295,8 +371,18 @@ class AppApi:
                         profile_info["base_deaths"] = resp_data.get("base_deaths", 0)
                     else:
                         profile_info["status"] = "error"
+                        profile_info["error"] = _format_token_error(resp_data.get("error", ""))
+            except urllib.error.HTTPError as e:
+                profile_info["status"] = "error"
+                try:
+                    err_json = json.loads(e.read().decode())
+                    raw_err = err_json.get("error", "")
+                except Exception:
+                    raw_err = ""
+                profile_info["error"] = _format_token_error(raw_err, http_code=e.code)
             except Exception:
                 profile_info["status"] = "error"
+                profile_info["error"] = "Сервер синхронизации временно недоступен"
 
         return {
             "config": config,
@@ -324,10 +410,6 @@ class AppApi:
             config_manager.update_config_value("sync_token", "")
             return {"success": False, "unlinked": True, "error": "Токен удален (аккаунт отвязан)"}
 
-        # Сразу сохраняем введенный пользователем токен в конфиг, чтобы старый не воскресал
-        config_manager.update_config_value("sync_token", token)
-
-        config = config_manager.load_config()
         api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         try:
             req = urllib.request.Request(api_url, headers={"x-sync-token": token})
@@ -335,16 +417,20 @@ class AppApi:
                 data = json.loads(resp.read().decode())
                 if data.get("success"):
                     username = _parse_username(data)
+                    config_manager.update_config_value("sync_token", token)
                     return {"success": True, "username": username}
-                return {"success": False, "error": data.get("error", "Неверный токен тестера")}
+                err_msg = _format_token_error(data.get("error", "Неверный токен"))
+                return {"success": False, "error": err_msg}
         except urllib.error.HTTPError as e:
             try:
                 err_data = json.loads(e.read().decode())
-                return {"success": False, "error": err_data.get("error", f"Недействительный токен ({e.code})")}
+                raw_err = err_data.get("error", "")
             except Exception:
-                return {"success": False, "error": f"Ошибка авторизации ({e.code})"}
+                raw_err = ""
+            err_msg = _format_token_error(raw_err, http_code=e.code)
+            return {"success": False, "error": err_msg}
         except Exception:
-            return {"success": False, "error": "Сервер недоступен (проверьте подключение)"}
+            return {"success": False, "error": "Сервер синхронизации временно недоступен"}
 
     def start_session(self, mood_rating=None, retroactive_created_at=None):
         config = config_manager.load_config()
@@ -488,6 +574,10 @@ class AppApi:
 
     def open_external_url(self, url):
         try:
+            base_url = _get_api_base_url()
+            if not is_url_allowed(url, base_url):
+                log.warning(f"[SECURITY:URL_REJECTED] Отклонен переход по внешнему URL: {url}")
+                return {"success": False, "error": "URL не разрешён политикой безопасности"}
             import webbrowser
             webbrowser.open(url)
             return {"success": True}
@@ -535,15 +625,21 @@ class AppApi:
         except Exception as e:
             return f"\n=== ДИАГНОСТИКА ОШИБКА: {e} ===\n\n"
 
-    def send_report(self, message=""):
+    def send_report(self, message="", include_diagnostics=True):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
             return {"success": False, "error": "Привяжите токен в настройках перед отправкой отчета"}
 
         api_url = f"{_get_api_base_url()}/api/tracker/report"
-        diagnostics = self._get_system_diagnostics()
-        recent_logs = diagnostics + logger.get_recent_logs()
+        if include_diagnostics:
+            diagnostics = self._get_system_diagnostics()
+            raw_logs = logger.get_recent_logs()
+            if len(raw_logs) > 500000:
+                raw_logs = raw_logs[-500000:]
+            recent_logs = diagnostics + raw_logs
+        else:
+            recent_logs = ""
 
         payload = {
             "sync_token": token,
@@ -600,6 +696,9 @@ class AppApi:
                     return {"update_available": False}
 
                 download_url = _resolve_download_url(data.get("download_url"), base_url)
+                installer_url = _resolve_download_url(data.get("installer_url") or data.get("download_url"), base_url)
+                sha256_setup = str(data.get("sha256_setup") or "").strip()
+                sha256_exe = str(data.get("sha256_exe") or "").strip()
                 is_newer = _is_newer_version(latest_version, APP_VERSION)
                 if is_newer:
                     log.info(f"[UPDATE] Доступна новая версия {latest_version} (текущая {APP_VERSION})")
@@ -608,56 +707,80 @@ class AppApi:
                     "current_version": APP_VERSION,
                     "latest_version": latest_version,
                     "release_name": str(data.get("release_name") or latest_version),
-                    "download_url": download_url
+                    "download_url": download_url,
+                    "installer_url": installer_url,
+                    "sha256_setup": sha256_setup,
+                    "sha256_exe": sha256_exe
                 }
         except Exception as e:
             log.warning(f"[UPDATE:CHECK_ERR] {e}")
             return {"update_available": False, "error": str(e)}
 
-    def apply_update(self, download_url=None):
-        resolved_url = _resolve_download_url(download_url)
+    def apply_update(self, download_url=None, installer_url=None, sha256_setup=None):
+        in_active_session = False
+        if self.engine:
+            if bool(getattr(self.engine, 'session_active', False)):
+                in_active_session = True
+            sm = getattr(self.engine, 'state_machine', None)
+            if sm and bool(getattr(sm, 'session_active', False)):
+                in_active_session = True
+        if in_active_session:
+            log.warning("[UPDATE:BLOCKED] Попытка обновления во время активного матча или сессии")
+            return {"success": False, "error": "Нельзя обновлять приложение во время активного матча или сессии"}
+
+        target_url = installer_url or download_url
+        if not target_url:
+            return {"success": False, "error": "URL для загрузки обновления не указан"}
+        resolved_url = _resolve_download_url(target_url, _get_api_base_url())
+
         try:
             temp_dir = os.environ.get('TEMP', os.path.dirname(sys.executable))
-            temp_exe = os.path.join(temp_dir, f"KD-Connect-update-{int(time.time())}.exe")
+            temp_setup = os.path.join(temp_dir, f"KD-Connect-Setup-{int(time.time())}.exe")
 
-            log.info(f"[UPDATE] Загрузка обновления с {resolved_url}")
+            log.info(f"[UPDATE] Загрузка установщика обновления с {resolved_url}")
             req = urllib.request.Request(resolved_url, headers={"User-Agent": f"KD-Connect/{APP_VERSION}"})
-            with urllib.request.urlopen(req, timeout=30) as resp, open(temp_exe, 'wb') as out_f:
-                out_f.write(resp.read())
+            hasher = hashlib.sha256()
+            with urllib.request.urlopen(req, timeout=45) as resp, open(temp_setup, 'wb') as out_f:
+                while True:
+                    chunk = resp.read(65536)
+                    if not chunk:
+                        break
+                    hasher.update(chunk)
+                    out_f.write(chunk)
 
-            if not os.path.exists(temp_exe) or os.path.getsize(temp_exe) < 1000000:
-                if os.path.exists(temp_exe):
-                    os.remove(temp_exe)
+            if not os.path.exists(temp_setup) or os.path.getsize(temp_setup) < 100000:
+                if os.path.exists(temp_setup):
+                    try: os.remove(temp_setup)
+                    except Exception: pass
                 return {"success": False, "error": "Ошибка целостности скачанного файла"}
 
-            with open(temp_exe, 'rb') as check_f:
+            # Проверка SHA-256 установщика (жёсткий отказ при несовпадении)
+            actual_sha256 = hasher.hexdigest()
+            if sha256_setup and sha256_setup.strip():
+                if actual_sha256.lower() != sha256_setup.strip().lower():
+                    try: os.remove(temp_setup)
+                    except Exception: pass
+                    log.error(f"[UPDATE:SHA256_MISMATCH] Не совпал хэш установщика! Ожидался: {sha256_setup}, получен: {actual_sha256}")
+                    return {"success": False, "error": "Ошибка проверки контрольной суммы (SHA-256) обновления"}
+
+            # Проверка исполняемого файла MZ
+            with open(temp_setup, 'rb') as check_f:
                 if check_f.read(2) != b'MZ':
-                    os.remove(temp_exe)
+                    try: os.remove(temp_setup)
+                    except Exception: pass
                     return {"success": False, "error": "Скачанный файл не является исполняемым (.exe)"}
 
             current_exe = os.path.abspath(sys.executable)
             if not getattr(sys, 'frozen', False):
-                return {"success": True, "downloaded_path": temp_exe, "dev_mode": True}
+                log.info(f"[UPDATE:DEV_MODE] Установщик сохранен в {temp_setup}")
+                return {"success": True, "downloaded_path": temp_setup, "dev_mode": True}
 
+            # Отвязанный помощник cmd (пауза 2 с → установщик /SILENT → start exe)
             bat_path = os.path.join(temp_dir, f"kd_update_{int(time.time())}.bat")
             bat_content = (
                 "@echo off\r\n"
-                "set _PYI_PARENT_PROCESS_LEVEL=\r\n"
-                "set _PYI_ARCHIVE_FILE=\r\n"
-                "set _PYI_APPLICATION_HOME_DIR=\r\n"
-                "set _PYI_SPLASH_IPC=\r\n"
-                "set _MEIPASS2=\r\n"
-                "set _MEIPASS=\r\n"
-                "set PYINSTALLER_STRICT_UNPACK_MODE=\r\n"
-                "set PYINSTALLER_RESET_ENVIRONMENT=\r\n"
-                "set PYINSTALLER_SUPPRESS_SPLASH_SCREEN=\r\n"
                 "timeout /t 2 /nobreak >nul\r\n"
-                ":retry\r\n"
-                f'move /y "{temp_exe}" "{current_exe}" >nul 2>&1\r\n'
-                "if errorlevel 1 (\r\n"
-                "    timeout /t 1 /nobreak >nul\r\n"
-                "    goto retry\r\n"
-                ")\r\n"
+                f'"{temp_setup}" /SILENT /SUPPRESSMSGBOXES /NORESTART\r\n'
                 f'start "" "{current_exe}"\r\n'
                 '(goto) 2>nul & del "%~f0"\r\n'
             )
@@ -665,22 +788,20 @@ class AppApi:
                 bf.write(bat_content)
 
             import subprocess
-            clean_env = os.environ.copy()
-            for var_key in list(clean_env.keys()):
-                if var_key.upper().startswith(('_PYI_', '_MEI', 'PYINSTALLER')):
-                    clean_env.pop(var_key, None)
-
             flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+            if hasattr(subprocess, 'DETACHED_PROCESS'):
+                flags |= subprocess.DETACHED_PROCESS
+
             subprocess.Popen(
                 ["cmd.exe", "/c", bat_path],
                 creationflags=flags,
-                env=clean_env,
                 close_fds=True
             )
 
             if webview.windows:
-                webview.windows[0].destroy()
-            sys.exit(0)
+                try: webview.windows[0].destroy()
+                except Exception: pass
+            os._exit(0)
         except Exception as e:
             log.error(f"[UPDATE:APPLY_ERR] {e}")
             return {"success": False, "error": str(e)}
@@ -712,13 +833,29 @@ def get_asset_path(filename):
 
 
 if __name__ == '__main__':
+    # 1. Проверка наличия WebView2 Runtime (п. 29)
+    if not is_webview2_available():
+        if sys.platform == 'win32':
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                0,
+                "Для работы KD Connect требуется компонент Microsoft Edge WebView2 Runtime.\n\n"
+                "Пожалуйста, установите WebView2 с официального сайта Microsoft:\n"
+                "https://developer.microsoft.com/microsoft-edge/webview2/\n\n"
+                "После установки перезапустите приложение.",
+                "KD Connect — Требуется WebView2",
+                0x10 | 0x0
+            )
+        sys.exit(1)
+
+    # 2. Одиночный запуск приложения через мьютекс Local\KDConnectSingleInstanceMutex (п. 17)
     _app_mutex = None
     if sys.platform == 'win32':
         try:
             import ctypes
             ERROR_ALREADY_EXISTS = 183
             kernel32 = ctypes.windll.kernel32
-            _app_mutex = kernel32.CreateMutexW(None, False, "Global\\KDConnectSingleInstanceMutex")
+            _app_mutex = kernel32.CreateMutexW(None, False, "Local\\KDConnectSingleInstanceMutex")
             if kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
                 ctypes.windll.user32.MessageBoxW(0, "Программа KD Connect уже запущена!", "KD Connect", 0x40 | 0x0)
                 sys.exit(0)
