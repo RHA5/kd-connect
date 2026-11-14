@@ -1,6 +1,6 @@
 ﻿; -- KD Connect Inno Setup Script --
 #define MyAppName "KD Connect"
-#define MyAppVersion "0.10.6"
+#define MyAppVersion "0.10.7"
 #define MyAppPublisher "KD Metrika"
 #define MyAppURL "https://kdmetrika.ru"
 #define MyAppExeName "KD-Connect.exe"
@@ -22,7 +22,7 @@ DefaultGroupName={#MyAppName}
 LicenseFile=license_ru.txt
 PrivilegesRequired=lowest
 OutputDir=.
-OutputBaseFilename=KD-Connect-Setup-v0.10.6
+OutputBaseFilename=KD-Connect-Setup-v0.10.7
 SetupIconFile=..\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
@@ -39,10 +39,10 @@ WizardImageStretch=yes
 AppMutex=Local\KDConnectSingleInstanceMutex
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=0.10.6.0
+VersionInfoVersion=0.10.7.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion=0.10.6.0
+VersionInfoProductVersion=0.10.7.0
 VersionInfoDescription=Установщик {#MyAppName}
 VersionInfoCopyright=Copyright (C) 2026 RHA5 (KD Metrika)
 

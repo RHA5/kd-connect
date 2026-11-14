@@ -11,8 +11,8 @@
 # ==============================================================================
 
 param(
-    [string]$Version = "v0.10.6",
-    [string]$Suffix = "-rc1"
+    [string]$Version = "v0.10.7",
+    [string]$Suffix = ""
 )
 
 $ErrorActionPreference = "Stop"
