@@ -30,7 +30,7 @@ class TestPersistenceQueue(unittest.TestCase):
 
         # Базовый конфиг с токеном
         config_manager.save_config({
-            "sync_token": "kdm_live_test_token_123",
+            "sync_token": "test_token_12345",
             "api_base_url": "http://localhost:3000"
         })
 
