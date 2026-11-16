@@ -182,6 +182,7 @@ class TrackerEngine:
                     "match_id": match_id,
                     "kills": 0,
                     "deaths": 0,
+                    "game_mode": self.state_machine.current_game_mode,
                     "start_time": time.time() - int(stats.get("duration", 0) or 0)
                 })
             except Exception as e:

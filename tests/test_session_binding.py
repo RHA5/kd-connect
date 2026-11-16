@@ -211,7 +211,7 @@ class TestSessionBinding(unittest.TestCase):
         self.assertIn('reused_existing', content)
         self.assertIn('already_closed', content)
         self.assertIn('session_mismatch', content)
-        self.assertIn('v0.10.8-beta', content)
+        self.assertIn('v0.11.0', content)
 
 
 if __name__ == "__main__":

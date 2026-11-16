@@ -16,7 +16,8 @@ DEFAULT_CONFIG = {
     "custom_hunt_path": "",
     "api_base_url": "https://kdmetrika.ru",
     "hide_disclaimer": False,
-    "onboarding_completed": False
+    "onboarding_completed": False,
+    "auto_start_session": True
 }
 
 def ensure_app_data_dir():

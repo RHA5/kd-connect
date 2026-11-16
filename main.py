@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.10.8-beta"
+APP_VERSION = "v0.11.0"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -78,6 +78,65 @@ def setup_crash_handlers():
     threading.excepthook = _thread_excepthook
 
 log = logger.get_logger("Main")
+_global_api = None
+
+
+def _handle_autostart_check(data):
+    api = _global_api
+    if not api:
+        return
+    config = config_manager.load_config()
+    if not config.get("auto_start_session", True):
+        return
+    if api.engine and hasattr(api.engine, 'network_sync'):
+        if api.engine.network_sync.get_current_session_id():
+            return
+        if getattr(api.engine.network_sync, 'manual_conflict', False):
+            return
+
+    match_id = data.get("match_id")
+    if not match_id or match_id in api._autostarted_match_ids:
+        return
+
+    game_mode = data.get("game_mode")
+    if game_mode not in ("BountyHunt", "BountyClash"):
+        log.info(f"[SESSION:AUTO_SKIP] Режим '{game_mode}' не поддерживает автостарт сессии")
+        return
+
+    api._autostarted_match_ids.add(match_id)
+
+    start_time_val = data.get("start_time")
+    import datetime
+    if isinstance(start_time_val, (int, float)) and start_time_val > 0:
+        iso_created_at = datetime.datetime.fromtimestamp(start_time_val, tz=datetime.timezone.utc).isoformat()
+    else:
+        iso_created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    res = api.start_session(auto=True, retroactive_created_at=iso_created_at)
+    if res.get("success"):
+        if webview.windows:
+            try:
+                webview.windows[0].evaluate_js(f"window.onAutoStartSuccess && window.onAutoStartSuccess({json.dumps(res)})")
+            except Exception:
+                pass
+    elif res.get("manual_conflict"):
+        if webview.windows:
+            try:
+                webview.windows[0].evaluate_js(f"window.onManualConflict && window.onManualConflict({json.dumps(res)})")
+            except Exception:
+                pass
+    else:
+        api._pending_auto_start = {
+            "match_id": match_id,
+            "start_time": iso_created_at,
+            "last_attempt": time.time()
+        }
+        log.info(f"[SESSION:AUTO_START_PENDING] Сессия будет запущена автоматически при восстановлении связи [match_id={match_id}]")
+        if webview.windows:
+            try:
+                webview.windows[0].evaluate_js("window.onAutoStartPending && window.onAutoStartPending()")
+            except Exception:
+                pass
 
 
 def on_session_change(is_active, data):
@@ -87,6 +146,9 @@ def on_session_change(is_active, data):
             webview.windows[0].evaluate_js(f"window.{fn} && window.{fn}({json.dumps(data)})")
         except Exception:
             pass
+    if is_active and isinstance(data, dict):
+        import threading
+        threading.Thread(target=_handle_autostart_check, args=(data,), daemon=True).start()
 
 
 def on_combat_event(event_type, count, stats):
@@ -252,9 +314,19 @@ def is_webview2_available():
 class AppApi:
     def __init__(self):
         self.engine = None
+        self._pending_auto_start = None
+        self._autostarted_match_ids = set()
 
     def set_engine(self, engine):
         self.engine = engine
+
+    def set_auto_start_session(self, val):
+        config_manager.update_config_value("auto_start_session", bool(val))
+        return {"success": True}
+
+    def get_auto_start_session(self):
+        config = config_manager.load_config()
+        return bool(config.get("auto_start_session", True))
 
     def on_frontend_ready(self):
         if sys.platform == 'win32' and webview.windows:
@@ -535,7 +607,7 @@ class AppApi:
         except Exception:
             return {"success": False, "error": "Сервер синхронизации временно недоступен"}
 
-    def start_session(self, mood_rating=None, retroactive_created_at=None):
+    def start_session(self, mood_rating=None, retroactive_created_at=None, auto=False):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
@@ -544,12 +616,16 @@ class AppApi:
 
         api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         payload = {"type": "session_start"}
-        if mood_rating is not None:
-            payload["mood_rating"] = mood_rating
+        if auto:
+            payload["auto"] = True
+        else:
+            if mood_rating is not None:
+                payload["mood_rating"] = mood_rating
         if retroactive_created_at:
             payload["created_at"] = retroactive_created_at
         masked_tok = logger.mask_token(token)
-        log.info(f"[SESSION:START_REQ] Старт сессии в БД [tok={masked_tok}, mood={mood_rating}, retro={retroactive_created_at}]")
+        prefix = "[SESSION:AUTO_START_REQ]" if auto else "[SESSION:START_REQ]"
+        log.info(f"{prefix} Старт сессии в БД [tok={masked_tok}, mood={mood_rating if not auto else None}, retro={retroactive_created_at}, auto={auto}]")
         try:
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
@@ -562,11 +638,15 @@ class AppApi:
                 data = json.loads(resp.read().decode('utf-8'))
                 if data.get("success"):
                     if data.get("reused_existing"):
-                        log.info(f"[SESSION:START_REUSED] Продолжаем активную сессию ID={data.get('session_id')}")
+                        ok_tag = "[SESSION:AUTO_START_REUSED]" if auto else "[SESSION:START_REUSED]"
+                        log.info(f"{ok_tag} Продолжаем активную сессию ID={data.get('session_id')}")
                     else:
-                        log.info(f"[SESSION:START_OK] Сессия создана: ID={data.get('session_id')}, пользователь='{data.get('username')}', начальные K/D={data.get('base_kd')}")
+                        ok_tag = "[SESSION:AUTO_START_OK]" if auto else "[SESSION:START_OK]"
+                        log.info(f"{ok_tag} Сессия создана: ID={data.get('session_id')}, пользователь='{data.get('username')}', начальные K/D={data.get('base_kd')}")
                     if self.engine and hasattr(self.engine, 'network_sync'):
                         self.engine.network_sync.set_current_session_id(data.get('session_id'))
+                        self.engine.network_sync.set_manual_conflict(False)
+                    self._pending_auto_start = None
                 else:
                     log.warning(f"[SESSION:START_ERR] Ошибка создания: {data.get('error')}")
                 return data
@@ -574,13 +654,19 @@ class AppApi:
             try:
                 err = json.loads(e.read().decode('utf-8'))
                 err_msg = err.get("error", f"Ошибка HTTP {e.code}")
+                if e.code == 409 and err.get("manual_conflict"):
+                    if self.engine and hasattr(self.engine, 'network_sync'):
+                        self.engine.network_sync.set_manual_conflict(True)
+                    self._pending_auto_start = None
+                    log.warning(f"[SESSION:MANUAL_CONFLICT] 409: {err_msg}")
+                    return {"success": False, "manual_conflict": True, "error": err_msg}
             except Exception:
                 err_msg = f"Ошибка сервера ({e.code})"
             log.error(f"[SESSION:START_HTTP_ERR] {err_msg}")
             return {"success": False, "error": err_msg}
         except Exception as ex:
             log.error(f"[SESSION:START_CONN_ERR] {ex}")
-            return {"success": False, "error": f"Сбой соединения: {ex}"}
+            return {"success": False, "offline": True, "error": f"Сбой соединения: {ex}"}
 
     def end_session(self, adjusted_kills=None, adjusted_deaths=None, force_discard=False, force_in_combat=False):
         config = config_manager.load_config()
@@ -638,12 +724,14 @@ class AppApi:
                     log.warning(f"[SESSION:END_ALREADY_CLOSED] Сессия уже закрыта на сервере: ID={data.get('session_id')}")
                     if self.engine and hasattr(self.engine, 'network_sync'):
                         self.engine.network_sync.set_current_session_id(None)
+                    self._pending_auto_start = None
                     return data
                 elif data.get("success"):
                     log.info(f"[SESSION:END_OK] Сессия завершена: ID={data.get('session_id')}, матчей={data.get('matches_count')}, киллов={data.get('kills')}, смертей={data.get('deaths')}, итоговые в лобби={data.get('total_kills')}/{data.get('total_deaths')}")
                     if self.engine and hasattr(self.engine, 'network_sync'):
                         self.engine.network_sync.set_current_session_id(None)
                         self.engine.network_sync.clear_pending_matches()
+                    self._pending_auto_start = None
                 else:
                     log.warning(f"[SESSION:END_ERR] Ошибка завершения: {data.get('error')}")
                 return data
@@ -674,8 +762,37 @@ class AppApi:
     def check_active_session(self):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
+        auto_enabled = bool(config.get("auto_start_session", True))
         if not token:
-            return {"success": False, "active_session": None, "manual_conflict": False}
+            return {
+                "success": False,
+                "active_session": None,
+                "manual_conflict": False,
+                "pending_auto_start": bool(self._pending_auto_start),
+                "auto_start_session": auto_enabled
+            }
+
+        # Проверка повтора отложенного автостарта (не чаще 15 сек)
+        if self._pending_auto_start and (time.time() - float(self._pending_auto_start.get("last_attempt", 0))) >= 15.0:
+            self._pending_auto_start["last_attempt"] = time.time()
+            retry_res = self.start_session(auto=True, retroactive_created_at=self._pending_auto_start.get("start_time"))
+            if retry_res.get("success"):
+                self._pending_auto_start = None
+                if webview.windows:
+                    try:
+                        webview.windows[0].evaluate_js(f"window.onAutoStartSuccess && window.onAutoStartSuccess({json.dumps(retry_res)})")
+                    except Exception:
+                        pass
+            elif retry_res.get("manual_conflict"):
+                self._pending_auto_start = None
+                if self.engine and hasattr(self.engine, 'network_sync'):
+                    self.engine.network_sync.set_manual_conflict(True)
+                if webview.windows:
+                    try:
+                        webview.windows[0].evaluate_js(f"window.onManualConflict && window.onManualConflict({json.dumps(retry_res)})")
+                    except Exception:
+                        pass
+
         api_url = f"{_get_api_base_url()}/api/tracker/pulse"
         try:
             req = urllib.request.Request(api_url, headers={"x-sync-token": token})
@@ -693,11 +810,25 @@ class AppApi:
                         "manual_conflict": resp_data.get("manual_conflict", False),
                         "ask_mood_on_start": resp_data.get("ask_mood_on_start", False),
                         "base_kills": resp_data.get("base_kills", 0),
-                        "base_deaths": resp_data.get("base_deaths", 0)
+                        "base_deaths": resp_data.get("base_deaths", 0),
+                        "pending_auto_start": bool(self._pending_auto_start),
+                        "auto_start_session": auto_enabled
                     }
-                return {"success": False, "active_session": None, "manual_conflict": False}
+                return {
+                    "success": False,
+                    "active_session": None,
+                    "manual_conflict": False,
+                    "pending_auto_start": bool(self._pending_auto_start),
+                    "auto_start_session": auto_enabled
+                }
         except Exception:
-            return {"success": False, "active_session": None, "manual_conflict": False}
+            return {
+                "success": False,
+                "active_session": None,
+                "manual_conflict": False,
+                "pending_auto_start": bool(self._pending_auto_start),
+                "auto_start_session": auto_enabled
+            }
 
     def open_external_url(self, url):
         try:
@@ -946,6 +1077,7 @@ if __name__ == '__main__':
             pass
     try:
         api = AppApi()
+        _global_api = api
         html_path = get_asset_path('preview.html')
         
         # Запасной путь, если лежит рядом с exe
