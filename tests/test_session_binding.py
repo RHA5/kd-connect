@@ -31,7 +31,7 @@ class TestSessionBinding(unittest.TestCase):
         config_manager.PENDING_MATCHES_FILE = os.path.join(self.temp_dir, "pending_matches.json")
 
         config_manager.save_config({
-            "sync_token": "kdm_live_test_token_12345",
+            "sync_token": "test_token_12345",
             "api_base_url": "https://kdmetrika.ru"
         })
         self.net = NetworkSync()
