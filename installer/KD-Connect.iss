@@ -1,6 +1,6 @@
-п»ї; -- KD Connect Inno Setup Script --
+; -- KD Connect Inno Setup Script --
 #define MyAppName "KD Connect"
-#define MyAppVersion "0.11.0"
+#define MyAppVersion "0.11.1"
 #define MyAppPublisher "KD Metrika"
 #define MyAppURL "https://kdmetrika.ru"
 #define MyAppExeName "KD-Connect.exe"
@@ -22,7 +22,7 @@ DefaultGroupName={#MyAppName}
 LicenseFile=license_ru.txt
 PrivilegesRequired=lowest
 OutputDir=.
-OutputBaseFilename=KD-Connect-Setup-v0.11.0
+OutputBaseFilename=KD-Connect-Setup-v0.11.1
 SetupIconFile=..\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
@@ -39,29 +39,29 @@ WizardImageStretch=yes
 AppMutex=Local\KDConnectSingleInstanceMutex
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=0.11.0.0
+VersionInfoVersion=0.11.1.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion=0.11.0.0
-VersionInfoDescription=РЈСЃС‚Р°РЅРѕРІС‰РёРє {#MyAppName}
+VersionInfoProductVersion=0.11.1.0
+VersionInfoDescription=Установщик {#MyAppName}
 VersionInfoCopyright=Copyright (C) 2026 RHA5 (KD Metrika)
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Messages]
-WelcomeLabel1=РЈСЃС‚Р°РЅРѕРІРєР° KD Connect
-WelcomeLabel2=РђРІС‚Рѕ-С‚СЂРµРєРµСЂ РјР°С‚С‡РµР№ Hunt: Showdown 1896 (v{#MyAppVersion}) РґР»СЏ СЃР°Р№С‚Р° kdmetrika.ru.%n%nР Р°Р±РѕС‚Р°РµС‚ С‚РѕР»СЊРєРѕ СЃ СЃРёСЃС‚РµРјРЅС‹РјРё Р»РѕРіР°РјРё, РЅРµ РІРЅРµРґСЂСЏРµС‚СЃСЏ РІ РёРіСЂСѓ Рё Р±РµР·РѕРїР°СЃРµРЅ РґР»СЏ Easy Anti-Cheat.
-WizardLicense=РЎРѕРіР»Р°С€РµРЅРёРµ Рё РѕС‚РєР°Р· РѕС‚ РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚Рё
-LicenseLabel=РЈРїСЂРѕС‰С‘РЅРЅС‹Рµ РїСЂР°РІРёР»Р° РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ В«РєР°Рє РµСЃС‚СЊВ»
-LicenseLabel3=Р§С‚РѕР±С‹ РїСЂРѕРґРѕР»Р¶РёС‚СЊ, РїСЂРёРјРёС‚Рµ СѓСЃР»РѕРІРёСЏ РЅРёР¶Рµ.
-WizardSelectDir=РџР°РїРєР° СѓСЃС‚Р°РЅРѕРІРєРё
-SelectDirDesc=Р’С‹Р±РµСЂРёС‚Рµ РїР°РїРєСѓ РґР»СЏ {#MyAppName}
-SelectDirLabel3=РџСЂРѕРіСЂР°РјРјР° СѓСЃС‚Р°РЅРѕРІРёС‚СЃСЏ РІ СѓРєР°Р·Р°РЅРЅСѓСЋ РїР°РїРєСѓ.
-SelectDirBrowseLabel=Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ РѕСЃС‚Р°РІРёС‚СЊ РїР°РїРєСѓ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ вЂ” С‚РѕРіРґР° Р°РІС‚РѕРѕР±РЅРѕРІР»РµРЅРёСЏ Р±СѓРґСѓС‚ СЂР°Р±РѕС‚Р°С‚СЊ С‚РёС…Рѕ Р±РµР· РїСЂР°РІ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°.
-FinishedHeadingLabel=РЈСЃС‚Р°РЅРѕРІРєР° Р·Р°РІРµСЂС€РµРЅР°
-FinishedLabelNoIcons=РћС‚РєСЂРѕР№С‚Рµ РїСЂРѕРіСЂР°РјРјСѓ Рё РЅР°СЃС‚СЂРѕР№С‚Рµ РµС‘ РїРѕ РїРѕС€Р°РіРѕРІРѕР№ РёРЅСЃС‚СЂСѓРєС†РёРё РІРЅСѓС‚СЂРё.
-FinishedLabel=РћС‚РєСЂРѕР№С‚Рµ РїСЂРѕРіСЂР°РјРјСѓ Рё РЅР°СЃС‚СЂРѕР№С‚Рµ РµС‘ РїРѕ РїРѕС€Р°РіРѕРІРѕР№ РёРЅСЃС‚СЂСѓРєС†РёРё РІРЅСѓС‚СЂРё.
+WelcomeLabel1=Установка KD Connect
+WelcomeLabel2=Авто-трекер матчей Hunt: Showdown 1896 (v{#MyAppVersion}) для сайта kdmetrika.ru.%n%nРаботает только с системными логами, не внедряется в игру и безопасен для Easy Anti-Cheat.
+WizardLicense=Соглашение и отказ от ответственности
+LicenseLabel=Упрощённые правила использования «как есть»
+LicenseLabel3=Чтобы продолжить, примите условия ниже.
+WizardSelectDir=Папка установки
+SelectDirDesc=Выберите папку для {#MyAppName}
+SelectDirLabel3=Программа установится в указанную папку.
+SelectDirBrowseLabel=Рекомендуется оставить папку по умолчанию — тогда автообновления будут работать тихо без прав администратора.
+FinishedHeadingLabel=Установка завершена
+FinishedLabelNoIcons=Откройте программу и настройте её по пошаговой инструкции внутри.
+FinishedLabel=Откройте программу и настройте её по пошаговой инструкции внутри.
 ClickFinish=
 
 [Files]
@@ -69,11 +69,11 @@ Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\{#MyAppName}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{userprograms}\{#MyAppName}\РЈРґР°Р»РёС‚СЊ {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{userprograms}\{#MyAppName}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Check: ShouldCreateDesktopShortcut
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Р—Р°РїСѓСЃС‚РёС‚СЊ {#MyAppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Запустить {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -90,7 +90,7 @@ begin
   DesktopShortcutCheck.Top := WizardForm.DirEdit.Top + WizardForm.DirEdit.Height + ScaleY(20);
   DesktopShortcutCheck.Width := WizardForm.SelectDirPage.Width - DesktopShortcutCheck.Left;
   DesktopShortcutCheck.Height := ScaleY(22);
-  DesktopShortcutCheck.Caption := 'РЎРѕР·РґР°С‚СЊ СЏСЂР»С‹Рє РЅР° СЂР°Р±РѕС‡РµРј СЃС‚РѕР»Рµ';
+  DesktopShortcutCheck.Caption := 'Создать ярлык на рабочем столе';
   DesktopShortcutCheck.Checked := True;
 end;
 
@@ -101,6 +101,6 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  // Р’СЃС‚СЂРѕРµРЅРЅС‹Р№ РјРµС…Р°РЅРёР·Рј CloseApplications=yes РјСЏРіРєРѕ Р·Р°РїСЂР°С€РёРІР°РµС‚ Р·Р°РІРµСЂС€РµРЅРёРµ С‡РµСЂРµР· AppMutex
+  // Встроенный механизм CloseApplications=yes мягко запрашивает завершение через AppMutex
   Result := '';
 end;

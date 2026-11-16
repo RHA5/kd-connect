@@ -19,12 +19,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'KD Metrika'),
             StringStruct('FileDescription', 'KD Connect - Hunt: Showdown 1896 Tracker'),
-            StringStruct('FileVersion', '0.11.0.0'),
+            StringStruct('FileVersion', '0.11.1.0'),
             StringStruct('InternalName', 'KD-Connect'),
             StringStruct('LegalCopyright', 'Copyright (C) 2026 RHA5 (KD Metrika)'),
             StringStruct('OriginalFilename', 'KD-Connect.exe'),
             StringStruct('ProductName', 'KD Connect'),
-            StringStruct('ProductVersion', '0.11.0.0')
+            StringStruct('ProductVersion', '0.11.1.0')
           ]
         )
       ]

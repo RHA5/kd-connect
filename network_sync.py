@@ -13,6 +13,9 @@ log = logger.get_logger("Network")
 
 MAX_QUEUE_AGE = 14400  # 4 часа в секундах
 BACKOFF_STAGES = [3, 6, 12, 30]
+MAX_ATTEMPTS = 20          # попыток на один матч, после чего он ждёт ручного повтора
+MAX_RETRY_AFTER = 900      # верхний предел паузы по Retry-After (15 минут)
+DEFAULT_RETRY_AFTER = 60   # пауза при 429 без заголовка Retry-After
 
 
 class NetworkSync:
@@ -32,6 +35,10 @@ class NetworkSync:
         self.running = True
         self.backoff_idx = 0
         self.wake_event = threading.Event()
+
+        # Постоянные ошибки доставки (этап 16): 401/403 и прочие неустранимые 4xx
+        self.token_error = None      # {"code": int, "message": str} — сервер отклонил токен
+        self.next_delay = None       # принудительная пауза после 429 (Retry-After)
 
         # 1. Загрузка персистентной очереди с диска и отсечка записей старше 4 часов
         self.retry_queue = self._load_and_filter_initial_queue()
@@ -73,6 +80,35 @@ class NetworkSync:
             self.manual_conflict = bool(conflict)
             if not self.manual_conflict:
                 self.wake_event.set()
+
+    def get_delivery_state(self):
+        """Состояние доставки для интерфейса: отклонённый токен, застрявшие матчи, пауза."""
+        with self.lock:
+            failed = sum(1 for item in self.retry_queue if item.get("permanent_fail"))
+            return {
+                "token_error": bool(self.token_error),
+                "token_error_code": (self.token_error or {}).get("code"),
+                "token_error_message": (self.token_error or {}).get("message"),
+                "failed_count": failed,
+                "queued_count": len(self.retry_queue),
+                "retry_after": int(self.next_delay) if self.next_delay else 0,
+            }
+
+    def retry_failed(self):
+        """Ручной повтор: снимает отметки постоянных ошибок и снова ставит матчи в отправку."""
+        with self.lock:
+            for item in self.retry_queue:
+                item.pop("permanent_fail", None)
+                item.pop("fail_reason", None)
+                item.pop("attempts", None)
+            self.token_error = None
+            self.next_delay = None
+            self.backoff_idx = 0
+            self._waiting_session_logged = False
+            self._persist_queue()
+        self.wake_event.set()
+        log.info("[NET:RETRY_RESET] Ручной повтор: отметки постоянных ошибок сняты, отправка возобновлена")
+        return self.get_delivery_state()
 
     def _load_and_filter_initial_queue(self):
         saved = config_manager.load_pending_matches()
@@ -125,6 +161,8 @@ class NetworkSync:
             self._waiting_session_logged = False
             self.manual_conflict = False
             self.backoff_idx = 0
+            self.token_error = None
+            self.next_delay = None
             config_manager.clear_pending_matches_file()
         if cleared > 0:
             log.info(f"[NET:QUEUE_CLEAR] Буфер неотправленных матчей очищен (удалено {cleared} матчей)")
@@ -232,8 +270,32 @@ class NetworkSync:
             finally:
                 self.state_queue.task_done()
 
+    def _update_queue_item(self, event_id, **fields):
+        """Обновляет запись очереди по event_id и сохраняет её на диск."""
+        with self.lock:
+            for it in self.retry_queue:
+                if it.get("event_id") == event_id:
+                    it.update(fields)
+                    break
+            self._persist_queue()
+
+    def _mark_permanent(self, item, reason, code):
+        """Помечает матч как неустранимую ошибку: автоматических повторов больше нет."""
+        event_id = item.get("event_id")
+        self._update_queue_item(
+            event_id,
+            permanent_fail=True,
+            fail_reason=str(reason)[:200],
+            fail_code=code,
+        )
+        state = self.get_delivery_state()
+        log.error(
+            f"[NET:PERMANENT_FAIL] Матч {event_id} не будет отправлен автоматически "
+            f"(код {code}): {reason}. Всего таких матчей: {state['failed_count']}"
+        )
+
     def _handle_delivery_error(self, item, err_info):
-        """Разбор ошибки отправки в соответствии с регламентом аудита."""
+        """Разбор ошибки отправки: ожидание, постоянные и временные ошибки (этап 16)."""
         event_id = item.get("event_id")
         if isinstance(err_info, dict):
             if err_info.get("manual_conflict"):
@@ -260,6 +322,34 @@ class NetworkSync:
                     self._waiting_session_logged = True
                 return
 
+            if err_info.get("token_error"):
+                code = err_info.get("status")
+                msg = err_info.get("error") or f"HTTP {code}"
+                with self.lock:
+                    self.token_error = {"code": code, "message": msg}
+                    self.backoff_idx = 0
+                log.error(
+                    f"[NET:TOKEN_REJECTED] Сервер отклонил токен ({code}): {msg}. "
+                    f"Отправка приостановлена до ручного повтора. Матчи в очереди не удаляются."
+                )
+                return
+
+            if err_info.get("rate_limited"):
+                delay = err_info.get("retry_after") or DEFAULT_RETRY_AFTER
+                try:
+                    delay = int(delay)
+                except (TypeError, ValueError):
+                    delay = DEFAULT_RETRY_AFTER
+                delay = max(1, min(delay, MAX_RETRY_AFTER))
+                with self.lock:
+                    self.next_delay = delay
+                log.warning(f"[NET:RATE_LIMIT] Сервер ограничил частоту (429). Пауза {delay}с по Retry-After.")
+                return
+
+            if err_info.get("permanent"):
+                self._mark_permanent(item, err_info.get("error") or "Постоянная ошибка сервера", err_info.get("status"))
+                return
+
         err_str = str(err_info).lower()
         if "нет активной сессии" in err_str:
             self.backoff_idx = 0
@@ -268,7 +358,21 @@ class NetworkSync:
                 self._waiting_session_logged = True
             return
 
-        # Сетевые ошибки или 5xx -> экспоненциальный бэкофф
+        # Сетевые ошибки или 5xx -> экспоненциальный бэкофф, но не бесконечно
+        with self.lock:
+            for it in self.retry_queue:
+                if it.get("event_id") == event_id:
+                    attempts = int(it.get("attempts") or 0) + 1
+                    it["attempts"] = attempts
+                    break
+            else:
+                attempts = 0
+            self._persist_queue()
+
+        if attempts >= MAX_ATTEMPTS:
+            self._mark_permanent(item, f"не удалось отправить за {attempts} попыток: {err_info}", None)
+            return
+
         self._waiting_session_logged = False
         delay = BACKOFF_STAGES[self.backoff_idx]
         self.backoff_idx = min(self.backoff_idx + 1, len(BACKOFF_STAGES) - 1)
@@ -329,8 +433,27 @@ class NetworkSync:
             if e.code == 400 and "нет активной сессии" in str(err_msg).lower():
                 return False, {"no_active_session": True, "error": err_msg, "status": 400}
 
+            if e.code in (401, 403):
+                log.error(f"[NET:TOKEN_ERR] ({elapsed_ms}ms) type='{p_type}': сервер отклонил токен ({e.code}): {err_msg}")
+                return False, {"token_error": True, "error": err_msg, "status": e.code}
+
+            if e.code == 429:
+                retry_after = None
+                try:
+                    raw_ra = e.headers.get("Retry-After") if e.headers else None
+                    if raw_ra is not None:
+                        retry_after = int(str(raw_ra).strip())
+                except (TypeError, ValueError):
+                    retry_after = None
+                log.warning(f"[NET:HTTP_429] ({elapsed_ms}ms) type='{p_type}': лимит частоты, Retry-After={retry_after}")
+                return False, {"rate_limited": True, "retry_after": retry_after, "error": err_msg, "status": 429}
+
             if e.code >= 500:
                 return False, {"is_server_error": True, "error": err_msg, "status": e.code}
+
+            if 400 <= e.code < 500:
+                log.error(f"[NET:HTTP_ERR] ({elapsed_ms}ms) type='{p_type}': постоянная ошибка {e.code}: {err_msg}")
+                return False, {"permanent": True, "error": err_msg, "status": e.code}
 
             if not (silent and "нет активной сессии" in str(err_msg).lower()):
                 log.error(f"[NET:HTTP_ERR] ({elapsed_ms}ms) type='{p_type}': {err_msg}")
@@ -343,13 +466,21 @@ class NetworkSync:
     def _retry_worker_loop(self):
         """Единый фоновый поток доставки очереди матчей."""
         while self.running:
-            # Расчет задержки: при ошибке сети берем текущий бэкофф, иначе дефолтные 3с
-            delay = BACKOFF_STAGES[self.backoff_idx] if self.backoff_idx > 0 else 3.0
+            # Расчет задержки: пауза по Retry-After важнее бэкоффа
+            with self.lock:
+                forced_delay = self.next_delay
+                self.next_delay = None
+                token_error = bool(self.token_error)
+            delay = forced_delay if forced_delay else (BACKOFF_STAGES[self.backoff_idx] if self.backoff_idx > 0 else 3.0)
             self.wake_event.wait(timeout=delay)
             self.wake_event.clear()
 
             if not self.running:
                 break
+
+            if token_error:
+                # Токен отклонён сервером: не долбим сервер, ждём ручного повтора
+                continue
 
             with self.lock:
                 # 4-часовой лимит: отсекаем старые матчи
@@ -375,15 +506,21 @@ class NetworkSync:
                 if self.manual_conflict:
                     continue
 
-                item = dict(self.retry_queue[0])
+                # Берём первый матч, который не помечен как неустранимая ошибка
+                item = None
+                for candidate in self.retry_queue:
+                    if not candidate.get("permanent_fail"):
+                        item = dict(candidate)
+                        break
+                if item is None:
+                    continue
 
             # Попытка отправки головного элемента (FIFO)
             ok, res_or_err = self._post_payload(item, is_retry=True)
             if ok:
                 with self.lock:
-                    if self.retry_queue and self.retry_queue[0].get("event_id") == item.get("event_id"):
-                        self.retry_queue.pop(0)
-                        self._persist_queue()
+                    self.retry_queue = [x for x in self.retry_queue if x.get("event_id") != item.get("event_id")]
+                    self._persist_queue()
                 self.backoff_idx = 0
                 self._waiting_session_logged = False
                 log.info(f"[RETRY:OK] Матч {item.get('event_id')} успешно доставлен из очереди повторов")
@@ -404,14 +541,21 @@ class NetworkSync:
             with self.lock:
                 if not self.retry_queue:
                     return 0
-                item = dict(self.retry_queue[0])
+                if self.token_error:
+                    break
+                item = None
+                for candidate in self.retry_queue:
+                    if not candidate.get("permanent_fail"):
+                        item = dict(candidate)
+                        break
+                if item is None:
+                    break
 
             ok, res_or_err = self._post_payload(item, is_retry=True)
             if ok:
                 with self.lock:
-                    if self.retry_queue and self.retry_queue[0].get("event_id") == item.get("event_id"):
-                        self.retry_queue.pop(0)
-                        self._persist_queue()
+                    self.retry_queue = [x for x in self.retry_queue if x.get("event_id") != item.get("event_id")]
+                    self._persist_queue()
                 self.backoff_idx = 0
                 continue
 
@@ -429,6 +573,15 @@ class NetworkSync:
                     break
                 if res_or_err.get("no_active_session"):
                     break
+                if res_or_err.get("token_error"):
+                    self._handle_delivery_error(item, res_or_err)
+                    break
+                if res_or_err.get("rate_limited"):
+                    self._handle_delivery_error(item, res_or_err)
+                    break
+                if res_or_err.get("permanent"):
+                    self._handle_delivery_error(item, res_or_err)
+                    continue
 
             err_str = str(res_or_err).lower()
             if "нет активной сессии" in err_str:

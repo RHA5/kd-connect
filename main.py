@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.0"
+APP_VERSION = "v0.11.1"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -759,6 +759,26 @@ class AppApi:
             return self.engine.network_sync.consume_session_lost()
         return False
 
+    def _delivery_state(self):
+        """Состояние доставки матчей для интерфейса (этап 16)."""
+        if self.engine and hasattr(self.engine, 'network_sync'):
+            try:
+                return self.engine.network_sync.get_delivery_state()
+            except Exception as ex:
+                log.warning(f"[NET:STATE_ERR] {ex}")
+        return {"token_error": False, "failed_count": 0, "queued_count": 0, "retry_after": 0}
+
+    def retry_delivery(self):
+        """Ручной повтор отправки матчей, помеченных как постоянная ошибка."""
+        if self.engine and hasattr(self.engine, 'network_sync'):
+            try:
+                state = self.engine.network_sync.retry_failed()
+                return {"success": True, "delivery": state}
+            except Exception as ex:
+                log.error(f"[NET:RETRY_ERR] {ex}")
+                return {"success": False, "error": str(ex)}
+        return {"success": False, "error": "Движок ещё не запущен"}
+
     def check_active_session(self):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
@@ -769,7 +789,8 @@ class AppApi:
                 "active_session": None,
                 "manual_conflict": False,
                 "pending_auto_start": bool(self._pending_auto_start),
-                "auto_start_session": auto_enabled
+                "auto_start_session": auto_enabled,
+                "delivery": self._delivery_state()
             }
 
         # Проверка повтора отложенного автостарта (не чаще 15 сек)
@@ -812,14 +833,16 @@ class AppApi:
                         "base_kills": resp_data.get("base_kills", 0),
                         "base_deaths": resp_data.get("base_deaths", 0),
                         "pending_auto_start": bool(self._pending_auto_start),
-                        "auto_start_session": auto_enabled
+                        "auto_start_session": auto_enabled,
+                        "delivery": self._delivery_state()
                     }
                 return {
                     "success": False,
                     "active_session": None,
                     "manual_conflict": False,
                     "pending_auto_start": bool(self._pending_auto_start),
-                    "auto_start_session": auto_enabled
+                    "auto_start_session": auto_enabled,
+                    "delivery": self._delivery_state()
                 }
         except Exception:
             return {
@@ -827,7 +850,8 @@ class AppApi:
                 "active_session": None,
                 "manual_conflict": False,
                 "pending_auto_start": bool(self._pending_auto_start),
-                "auto_start_session": auto_enabled
+                "auto_start_session": auto_enabled,
+                "delivery": self._delivery_state()
             }
 
     def open_external_url(self, url):

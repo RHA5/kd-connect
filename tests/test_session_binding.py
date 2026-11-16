@@ -211,7 +211,16 @@ class TestSessionBinding(unittest.TestCase):
         self.assertIn('reused_existing', content)
         self.assertIn('already_closed', content)
         self.assertIn('session_mismatch', content)
-        self.assertIn('v0.11.0', content)
+        self.assertIn('id="idle-delivery-box"', content)
+        self.assertIn('retry_delivery', content)
+
+        # Версия в интерфейсе должна совпадать с APP_VERSION в main.py
+        import re
+        main_path = os.path.join(os.path.dirname(__file__), "..", "main.py")
+        with open(main_path, "r", encoding="utf-8") as f:
+            match = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', f.read())
+        self.assertIsNotNone(match, "APP_VERSION не найден в main.py")
+        self.assertIn(match.group(1), content)
 
 
 if __name__ == "__main__":
