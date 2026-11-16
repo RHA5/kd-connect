@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.10.7"
+APP_VERSION = "v0.10.8-beta"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -442,7 +442,8 @@ class AppApi:
             "token": token,
             "active_session": None,
             "manual_conflict": False,
-            "error": ""
+            "error": "",
+            "offline": False
         }
         if token:
             api_url = f"{_get_api_base_url()}/api/tracker/pulse"
@@ -458,20 +459,33 @@ class AppApi:
                         profile_info["ask_mood_on_start"] = resp_data.get("ask_mood_on_start", False)
                         profile_info["base_kills"] = resp_data.get("base_kills", 0)
                         profile_info["base_deaths"] = resp_data.get("base_deaths", 0)
+                        profile_info["offline"] = False
                     else:
                         profile_info["status"] = "error"
                         profile_info["error"] = _format_token_error(resp_data.get("error", ""))
+                        profile_info["offline"] = False
             except urllib.error.HTTPError as e:
-                profile_info["status"] = "error"
                 try:
                     err_json = json.loads(e.read().decode())
                     raw_err = err_json.get("error", "")
                 except Exception:
                     raw_err = ""
-                profile_info["error"] = _format_token_error(raw_err, http_code=e.code)
+                if e.code >= 500:
+                    profile_info["status"] = "offline"
+                    profile_info["error"] = "Сервер временно недоступен"
+                    profile_info["offline"] = True
+                else:
+                    profile_info["status"] = "error"
+                    profile_info["error"] = _format_token_error(raw_err, http_code=e.code)
+                    profile_info["offline"] = False
+            except (urllib.error.URLError, TimeoutError):
+                profile_info["status"] = "offline"
+                profile_info["error"] = "Нет связи с сервером"
+                profile_info["offline"] = True
             except Exception:
-                profile_info["status"] = "error"
-                profile_info["error"] = "Сервер синхронизации временно недоступен"
+                profile_info["status"] = "offline"
+                profile_info["error"] = "Нет связи с сервером"
+                profile_info["offline"] = True
 
         return {
             "config": config,
@@ -547,7 +561,10 @@ class AppApi:
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
                 if data.get("success"):
-                    log.info(f"[SESSION:START_OK] Сессия создана: ID={data.get('session_id')}, пользователь='{data.get('username')}', начальные K/D={data.get('base_kd')}")
+                    if data.get("reused_existing"):
+                        log.info(f"[SESSION:START_REUSED] Продолжаем активную сессию ID={data.get('session_id')}")
+                    else:
+                        log.info(f"[SESSION:START_OK] Сессия создана: ID={data.get('session_id')}, пользователь='{data.get('username')}', начальные K/D={data.get('base_kd')}")
                     if self.engine and hasattr(self.engine, 'network_sync'):
                         self.engine.network_sync.set_current_session_id(data.get('session_id'))
                 else:
@@ -595,13 +612,18 @@ class AppApi:
                 self.engine.network_sync.clear_pending_matches()
 
         api_url = f"{_get_api_base_url()}/api/tracker/pulse"
+        sid = None
+        if self.engine and hasattr(self.engine, 'network_sync'):
+            sid = self.engine.network_sync.get_current_session_id()
         payload = {"type": "session_end"}
+        if sid:
+            payload["session_id"] = sid
         if adjusted_kills is not None:
             payload["adjusted_kills"] = adjusted_kills
         if adjusted_deaths is not None:
             payload["adjusted_deaths"] = adjusted_deaths
         masked_tok = logger.mask_token(token)
-        log.info(f"[SESSION:END_REQ] Завершение сессии [tok={masked_tok}, adjK={adjusted_kills}, adjD={adjusted_deaths}]")
+        log.info(f"[SESSION:END_REQ] Завершение сессии [tok={masked_tok}, sid={sid}, adjK={adjusted_kills}, adjD={adjusted_deaths}]")
         try:
             req_data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
@@ -612,7 +634,12 @@ class AppApi:
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
-                if data.get("success"):
+                if data.get("already_closed"):
+                    log.warning(f"[SESSION:END_ALREADY_CLOSED] Сессия уже закрыта на сервере: ID={data.get('session_id')}")
+                    if self.engine and hasattr(self.engine, 'network_sync'):
+                        self.engine.network_sync.set_current_session_id(None)
+                    return data
+                elif data.get("success"):
                     log.info(f"[SESSION:END_OK] Сессия завершена: ID={data.get('session_id')}, матчей={data.get('matches_count')}, киллов={data.get('kills')}, смертей={data.get('deaths')}, итоговые в лобби={data.get('total_kills')}/{data.get('total_deaths')}")
                     if self.engine and hasattr(self.engine, 'network_sync'):
                         self.engine.network_sync.set_current_session_id(None)
@@ -621,17 +648,28 @@ class AppApi:
                     log.warning(f"[SESSION:END_ERR] Ошибка завершения: {data.get('error')}")
                 return data
         except urllib.error.HTTPError as e:
+            err = {}
             try:
                 err = json.loads(e.read().decode('utf-8'))
                 err_msg = err.get("error", f"Ошибка HTTP {e.code}")
             except Exception:
                 err_msg = f"Ошибка сервера ({e.code})"
+            if e.code == 409 and err.get("session_mismatch"):
+                log.warning(f"[SESSION:END_MISMATCH] {err_msg}")
+                if self.engine and hasattr(self.engine, 'network_sync'):
+                    self.engine.network_sync.set_current_session_id(None)
+                return {"success": False, "session_mismatch": True, "error": err_msg}
             log.error(f"[SESSION:END_HTTP_ERR] {err_msg}")
             return {"success": False, "error": err_msg}
         except Exception as ex:
             log.error(f"[SESSION:END_CONN_ERR] {ex}")
             # Сетевая ошибка — очередь НЕ очищается, сессия остаётся открытой для повтора
             return {"success": False, "error": f"Сбой соединения: {ex}"}
+
+    def consume_session_lost(self):
+        if self.engine and hasattr(self.engine, 'network_sync'):
+            return self.engine.network_sync.consume_session_lost()
+        return False
 
     def check_active_session(self):
         config = config_manager.load_config()

@@ -26,6 +26,7 @@ class NetworkSync:
     def __init__(self):
         self.lock = threading.Lock()
         self.current_session_id = None
+        self.session_lost = False
         self.manual_conflict = False
         self._waiting_session_logged = False
         self.running = True
@@ -44,14 +45,27 @@ class NetworkSync:
         self.worker_thread = threading.Thread(target=self._retry_worker_loop, daemon=True)
         self.worker_thread.start()
 
+    def get_current_session_id(self):
+        """Возвращает текущий активный session_id под блокировкой."""
+        with self.lock:
+            return self.current_session_id
+
     def set_current_session_id(self, session_id):
         """Фиксирует активный session_id для привязки новых матчей."""
         with self.lock:
             self.current_session_id = str(session_id).strip() if session_id else None
-            # Если привязали сессию, сбрасываем флаг ожидания сессии
+            # Если привязали сессию, сбрасываем флаг ожидания сессии и сбрасываем session_lost
             if self.current_session_id:
                 self._waiting_session_logged = False
+                self.session_lost = False
                 self.wake_event.set()
+
+    def consume_session_lost(self):
+        """Возвращает флаг потери сессии и атомарно сбрасывает его."""
+        with self.lock:
+            lost = self.session_lost
+            self.session_lost = False
+            return lost
 
     def set_manual_conflict(self, conflict: bool):
         """Устанавливает или сбрасывает флаг конфликта ручной сессии."""
@@ -187,6 +201,9 @@ class NetworkSync:
             "kills": int(kills),
             "deaths": int(deaths)
         }
+        sid = self.get_current_session_id()
+        if sid:
+            payload["session_id"] = sid
         try:
             self.state_queue.put_nowait(payload)
         except queue.Full:
@@ -226,12 +243,14 @@ class NetworkSync:
                 return
 
             if err_info.get("session_mismatch"):
-                # session_mismatch -> удалить только этот конкретный матч из очереди
+                # session_mismatch -> удалить только этот конкретный матч из очереди, сбросить session_id и установить session_lost
                 self.backoff_idx = 0
                 with self.lock:
                     self.retry_queue = [x for x in self.retry_queue if x.get("event_id") != event_id]
                     self._persist_queue()
-                log.warning(f"[NET:SESSION_MISMATCH] Матч {event_id} отклонен сервером (сессия уже закрыта). Удален из очереди.")
+                    self.current_session_id = None
+                    self.session_lost = True
+                log.warning(f"[NET:SESSION_MISMATCH] Матч {event_id} отклонен сервером (сессия уже закрыта). Удален из очереди. Сессия сброшена.")
                 return
 
             if err_info.get("no_active_session"):
@@ -402,6 +421,8 @@ class NetworkSync:
                         if self.retry_queue and self.retry_queue[0].get("event_id") == item.get("event_id"):
                             self.retry_queue.pop(0)
                             self._persist_queue()
+                        self.current_session_id = None
+                        self.session_lost = True
                     continue
                 if res_or_err.get("manual_conflict"):
                     self.manual_conflict = True
