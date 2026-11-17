@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.3"
+APP_VERSION = "v0.11.4"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -1024,6 +1024,16 @@ class AppApi:
                 target_exe = installed_exe
             else:
                 target_exe = current_exe
+            target_dir = os.path.dirname(target_exe)
+
+            # Очистка переменных окружения PyInstaller во избежание сбоя _MEIPASS2 в дочернем процессе
+            clean_env = os.environ.copy()
+            clean_env.pop('_MEIPASS2', None)
+            clean_env.pop('_MEIPASS', None)
+            if hasattr(sys, '_MEIPASS'):
+                meipass = getattr(sys, '_MEIPASS')
+                paths = clean_env.get('PATH', '').split(os.pathsep)
+                clean_env['PATH'] = os.pathsep.join([p for p in paths if p and os.path.abspath(p) != os.path.abspath(meipass)])
 
             # Файл журнала обновления
             appdata_dir = os.environ.get('APPDATA', '')
@@ -1038,6 +1048,8 @@ class AppApi:
             bat_path = os.path.join(temp_dir, f"kd_update_{int(time.time())}.bat")
             bat_content = (
                 "@echo off\r\n"
+                "set _MEIPASS2=\r\n"
+                "set _MEIPASS=\r\n"
                 f'echo [%date% %time%] [UPDATE_START] temp_setup="{temp_setup}" target_exe="{target_exe}" >> "{update_log}"\r\n'
                 "ping 127.0.0.1 -n 3 >nul\r\n"
                 f'echo [%date% %time%] [INSTALLER_RUN] Running installer /VERYSILENT >> "{update_log}"\r\n'
@@ -1048,6 +1060,7 @@ class AppApi:
                 f'echo [%date% %time%] [CLEANUP] Removing temp setup >> "{update_log}"\r\n'
                 f'del /f /q "{temp_setup}" 2>nul\r\n'
                 f'echo [%date% %time%] [APP_START] Starting "{target_exe}" >> "{update_log}"\r\n'
+                f'cd /d "{target_dir}"\r\n'
                 f'start "" "{target_exe}"\r\n'
                 f'echo [%date% %time%] [UPDATE_FINISHED] >> "{update_log}"\r\n'
                 '(goto) 2>nul & del "%~f0"\r\n'
@@ -1067,6 +1080,7 @@ class AppApi:
                 ["cmd.exe", "/c", bat_path],
                 startupinfo=startupinfo,
                 creationflags=flags,
+                env=clean_env,
                 close_fds=True
             )
 
