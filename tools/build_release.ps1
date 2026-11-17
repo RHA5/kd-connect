@@ -11,7 +11,7 @@
 # ==============================================================================
 
 param(
-    [string]$Version = "v0.11.0",
+    [string]$Version = "v0.11.3",
     [string]$Suffix = ""
 )
 
@@ -99,6 +99,14 @@ Write-Host "Inno Setup build successful: $setupPath ($setupSize bytes)" -Foregro
 Write-Host "`n[4/6] Computing SHA-256 hashes..." -ForegroundColor Yellow
 $sha256_exe = (Get-FileHash -Path $exePath -Algorithm SHA256).Hash.ToLower()
 $sha256_setup = (Get-FileHash -Path $setupPath -Algorithm SHA256).Hash.ToLower()
+
+if ($sha256_exe -notmatch '^[a-f0-9]{64}$' -or $sha256_exe -match '^0+$') {
+    throw "ERROR: Invalid sha256_exe computed: '$sha256_exe'"
+}
+if ($sha256_setup -notmatch '^[a-f0-9]{64}$' -or $sha256_setup -match '^0+$') {
+    throw "ERROR: Invalid sha256_setup computed: '$sha256_setup'"
+}
+
 Write-Host "  sha256_exe:   $sha256_exe" -ForegroundColor White
 Write-Host "  sha256_setup: $sha256_setup" -ForegroundColor White
 

@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.1"
+APP_VERSION = "v0.11.3"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -990,10 +990,16 @@ class AppApi:
                     except Exception: pass
                 return {"success": False, "error": "Ошибка целостности скачанного файла"}
 
-            # Проверка SHA-256 установщика (жёсткий отказ при несовпадении)
+            # Проверка SHA-256 установщика (жёсткий отказ при несовпадении или нулях)
             actual_sha256 = hasher.hexdigest()
             if sha256_setup and sha256_setup.strip():
-                if actual_sha256.lower() != sha256_setup.strip().lower():
+                expected_sha = sha256_setup.strip().lower()
+                if expected_sha == "0" * 64 or expected_sha.startswith("00000000"):
+                    try: os.remove(temp_setup)
+                    except Exception: pass
+                    log.error("[UPDATE:SHA256_ZERO] Обнаружен фиктивный хэш установщика (нули)")
+                    return {"success": False, "error": "Некорректная контрольная сумма (SHA-256) обновления на сервере"}
+                if actual_sha256.lower() != expected_sha:
                     try: os.remove(temp_setup)
                     except Exception: pass
                     log.error(f"[UPDATE:SHA256_MISMATCH] Не совпал хэш установщика! Ожидался: {sha256_setup}, получен: {actual_sha256}")
@@ -1011,25 +1017,55 @@ class AppApi:
                 log.info(f"[UPDATE:DEV_MODE] Установщик сохранен в {temp_setup}")
                 return {"success": True, "downloaded_path": temp_setup, "dev_mode": True}
 
-            # Отвязанный помощник cmd (пауза 2 с → установщик /SILENT → start exe)
+            # Целевой исполняемый файл: приоритет установленной копии
+            local_appdata = os.environ.get('LOCALAPPDATA', '')
+            installed_exe = os.path.join(local_appdata, 'Programs', 'KD Connect', 'KD-Connect.exe') if local_appdata else None
+            if installed_exe and os.path.exists(installed_exe):
+                target_exe = installed_exe
+            else:
+                target_exe = current_exe
+
+            # Файл журнала обновления
+            appdata_dir = os.environ.get('APPDATA', '')
+            kd_dir = os.path.join(appdata_dir, 'KDConnect') if appdata_dir else temp_dir
+            try:
+                os.makedirs(kd_dir, exist_ok=True)
+            except Exception:
+                pass
+            update_log = os.path.join(kd_dir, 'update.log')
+
+            # Отвязанный помощник cmd без всплывающего окна консоли
             bat_path = os.path.join(temp_dir, f"kd_update_{int(time.time())}.bat")
             bat_content = (
                 "@echo off\r\n"
-                "timeout /t 2 /nobreak >nul\r\n"
-                f'"{temp_setup}" /SILENT /SUPPRESSMSGBOXES /NORESTART\r\n'
-                f'start "" "{current_exe}"\r\n'
+                f'echo [%date% %time%] [UPDATE_START] temp_setup="{temp_setup}" target_exe="{target_exe}" >> "{update_log}"\r\n'
+                "ping 127.0.0.1 -n 3 >nul\r\n"
+                f'echo [%date% %time%] [INSTALLER_RUN] Running installer /VERYSILENT >> "{update_log}"\r\n'
+                f'"{temp_setup}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\r\n'
+                "set INSTALLER_EXIT=%ERRORLEVEL%\r\n"
+                f'echo [%date% %time%] [INSTALLER_DONE] ExitCode=%INSTALLER_EXIT% >> "{update_log}"\r\n'
+                "ping 127.0.0.1 -n 4 >nul\r\n"
+                f'echo [%date% %time%] [CLEANUP] Removing temp setup >> "{update_log}"\r\n'
+                f'del /f /q "{temp_setup}" 2>nul\r\n'
+                f'echo [%date% %time%] [APP_START] Starting "{target_exe}" >> "{update_log}"\r\n'
+                f'start "" "{target_exe}"\r\n'
+                f'echo [%date% %time%] [UPDATE_FINISHED] >> "{update_log}"\r\n'
                 '(goto) 2>nul & del "%~f0"\r\n'
             )
             with open(bat_path, "w", encoding="cp866") as bf:
                 bf.write(bat_content)
 
             import subprocess
+            startupinfo = None
+            if sys.platform == 'win32':
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                startupinfo.wShowWindow = 0  # SW_HIDE
             flags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            if hasattr(subprocess, 'DETACHED_PROCESS'):
-                flags |= subprocess.DETACHED_PROCESS
 
             subprocess.Popen(
                 ["cmd.exe", "/c", bat_path],
+                startupinfo=startupinfo,
                 creationflags=flags,
                 close_fds=True
             )
