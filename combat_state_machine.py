@@ -156,6 +156,7 @@ class CombatStateMachine:
         self.is_level_loading = False
         self.last_loading_ended_at = 0.0
         self.last_timeout_kill = None
+        self.first_highlight_after_load = False
 
     def _log_info(self, msg):
         if not self.is_warming_up:
@@ -292,10 +293,12 @@ class CombatStateMachine:
 
             if "to (eLS_Loading)" in line or "Starting UI state machine 'loading/StateMachine'" in line:
                 self.is_level_loading = True
+                self.first_highlight_after_load = False
 
             if "to (eLS_Game)" in line or "Stopping UI state machine 'loading/StateMachine'" in line:
                 self.is_level_loading = False
                 self.last_loading_ended_at = self.clock.monotonic()
+                self.first_highlight_after_load = True
 
             if "UI state machine" in line and any(
                 tag in line for tag in (
@@ -463,16 +466,18 @@ class CombatStateMachine:
                     if not self.is_warming_up:
                         self._record_death(matched["time"])
                 else:
-                    # Буфер пуст. Проверяем осторожный компенсирующий откат ложного килла по таймауту
+                    # Буфер пуст. Проверяем осторожный компенсирующий откат ложного килла по таймауту:
+                    # ТОЛЬКО если килл имел признак load_grace=True, не было других хайлайтов и прошло <= 0.75с
                     if (
                         self.last_timeout_kill
+                        and self.last_timeout_kill.get("load_grace") is True
                         and len(self.pending_highlights) == 0
                         and (now - self.last_timeout_kill["time"]) <= 0.75
                     ):
                         timeout_delta = now - self.last_timeout_kill["time"]
                         log.warning(
                             f"[DECISION:ROLLBACK] ОТКАТ ЛОЖНОГО КИЛЛА: Экран смерти открылся через {timeout_delta:.3f}с "
-                            f"после подтверждения по таймауту (гонка UI при загрузке)"
+                            f"после подтверждения по таймауту (гонка UI при загрузке, load_grace=True)"
                         )
                         self.kills = max(0, self.kills - 1)
                         if self.last_timeout_kill.get("is_trade"):
@@ -560,21 +565,29 @@ class CombatStateMachine:
 
                 # Иначе: кандидат на фраг (КИЛЛ в живом состоянии)
                 # Ожидаем окно подтверждения (1.2 сек)
-                # Динамическое окно подтверждения: 3.0 с если идет загрузка или прошло <= 10.0 с после конца загрузки уровня
-                is_recent_loading = (
-                    self.is_level_loading
-                    or (self.last_loading_ended_at > 0 and (now - self.last_loading_ended_at) <= 10.0)
+                # Динамическое окно подтверждения: 3.0 с и load_grace ТОЛЬКО для первого хайлайта в течение 10.0 с после загрузки/реконнекта
+                is_recent_load = (
+                    self.first_highlight_after_load
+                    and self.last_loading_ended_at > 0
+                    and (now - self.last_loading_ended_at) <= 10.0
                 )
-                timeout_window = 3.0 if is_recent_loading else self.KILL_CONFIRMATION_TIMEOUT
+                if is_recent_load or self.is_level_loading:
+                    timeout_window = 3.0
+                    load_grace = True
+                    self.first_highlight_after_load = False  # Потребляется первым хайлайтом после загрузки
+                else:
+                    timeout_window = self.KILL_CONFIRMATION_TIMEOUT  # 1.2с
+                    load_grace = False
 
                 highlight_id = uuid.uuid4().hex
-                suffix = " (после загрузки уровня)" if is_recent_loading else ""
+                suffix = " (после загрузки уровня, load_grace=True)" if load_grace else ""
                 log.info(f"[DECISION] КАНДИДАТ НА КИЛЛ: Хайлайт {highlight_id[:8]} поставлен в буфер подтверждения на {timeout_window}с{suffix}")
                 timer = self.scheduler.schedule(timeout_window, self._on_highlight_timeout, args=[highlight_id])
                 self.pending_highlights.append({
                     "id": highlight_id,
                     "time": now,
-                    "timer": timer
+                    "timer": timer,
+                    "load_grace": load_grace
                 })
 
     def _on_highlight_timeout(self, highlight_id):
@@ -606,10 +619,12 @@ class CombatStateMachine:
                 self.last_timeout_kill = {
                     "time": self.clock.monotonic(),
                     "is_trade": is_trade,
-                    "highlight_id": highlight_id
+                    "highlight_id": highlight_id,
+                    "load_grace": target.get("load_grace", False)
                 }
 
     def _record_kill(self, timestamp):
+        self.last_timeout_kill = None
         self.kills += 1
         is_trade = False
 
@@ -771,6 +786,8 @@ class CombatStateMachine:
 
             self._log_info(f"[MATCH:END] Завершение матча: ID={stats['match_id']}, K={stats['kills']}, D={stats['deaths']}, T={stats['trades']}, Длительность={stats['duration_seconds']}с, Причина='{reason}'")
 
+            self.last_timeout_kill = None
+            self.first_highlight_after_load = False
             self.session_active = False
             self.awaiting_reconnect = False
             self.current_map = None
