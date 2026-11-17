@@ -1,6 +1,6 @@
 ; -- KD Connect Inno Setup Script --
 #define MyAppName "KD Connect"
-#define MyAppVersion "0.11.7"
+#define MyAppVersion "0.11.8"
 #define MyAppPublisher "KD Metrika"
 #define MyAppURL "https://kdmetrika.ru"
 #define MyAppExeName "KD-Connect.exe"
@@ -22,7 +22,7 @@ DefaultGroupName={#MyAppName}
 LicenseFile=license_ru.txt
 PrivilegesRequired=lowest
 OutputDir=.
-OutputBaseFilename=KD-Connect-Setup-v0.11.7
+OutputBaseFilename=KD-Connect-Setup-v0.11.8
 SetupIconFile=..\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
@@ -39,10 +39,10 @@ WizardImageStretch=yes
 AppMutex=Local\KDConnectSingleInstanceMutex
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=0.11.7.0
+VersionInfoVersion=0.11.8.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion=0.11.7.0
+VersionInfoProductVersion=0.11.8.0
 VersionInfoDescription=Установщик {#MyAppName}
 VersionInfoCopyright=Copyright (C) 2026 RHA5 (KD Metrika)
 
@@ -52,9 +52,9 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 [Messages]
 WelcomeLabel1=Установка KD Connect
 WelcomeLabel2=Авто-трекер матчей Hunt: Showdown 1896 (v{#MyAppVersion}) для сайта kdmetrika.ru.%n%nРаботает только с системными логами, не внедряется в игру и безопасен для Easy Anti-Cheat.
-WizardLicense=Соглашение и отказ от ответственности
-LicenseLabel=Упрощённые правила использования «как есть»
-LicenseLabel3=Чтобы продолжить, примите условия ниже.
+WizardLicense=Пользовательское соглашение
+LicenseLabel=Условия работы трекера
+LicenseLabel3=Ознакомьтесь с соглашением перед началом работы.
 WizardSelectDir=Папка установки
 SelectDirDesc=Выберите папку для {#MyAppName}
 SelectDirLabel3=Программа установится в указанную папку.
