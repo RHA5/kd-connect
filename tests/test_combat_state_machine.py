@@ -243,6 +243,65 @@ class TestCombatStateMachine(unittest.TestCase):
         self.assertEqual(stats["deaths"], 0)
         self.assertEqual(stats["duration_seconds"], 180)
 
+    # -------------------------------------------------------------------------
+    # 8. Динамическое окно 3.0с после загрузки уровня и откат ложного килла (Баг 1)
+    # -------------------------------------------------------------------------
+    def test_dynamic_confirmation_window_after_level_load(self):
+        """После окончания загрузки уровня окно подтверждения хайлайта равно 3.0с."""
+        self._start_standard_match()
+        self.fsm.feed_game_log_line("Stopping UI state machine 'loading/StateMachine'...")
+        self.clock.advance(3.0)  # 3с после загрузки (попадает в окно 10с)
+
+        self.fsm.feed_nvidia_line("Posted Request HLSetVideo[kill_candidate]")
+        self.assertEqual(len(self.fsm.pending_highlights), 1)
+
+        # Через 1.5с (старый таймаут 1.2с уже прошел) хайлайт ВСЕ ЕЩЕ в буфере
+        self.clock.advance(1.5)
+        self.assertEqual(len(self.fsm.pending_highlights), 1)
+        self.assertEqual(self.fsm.kills, 0)
+
+        # Через еще 1.6с (суммарно 3.1с) хайлайт подтверждается
+        self.clock.advance(1.6)
+        self.assertEqual(len(self.fsm.pending_highlights), 0)
+        self.assertEqual(self.fsm.kills, 1)
+
+    def test_late_death_screen_rollback_within_075s(self):
+        """Экран смерти, открывшийся через 62мс после таймаута, откатывает ложный килл и фиксирует смерть."""
+        self._start_standard_match()
+        self.fsm.feed_nvidia_line("Posted Request HLSetVideo[poison_cloud_death]")
+        self.clock.advance(1.21)
+
+        # Килл ошибочно подтвержден по таймауту
+        self.assertEqual(self.fsm.kills, 1)
+        self.assertEqual(self.fsm.deaths, 0)
+
+        # Ровно через 62мс игра наконец открывает экран смерти (воспроизведение Матча 8)
+        self.clock.advance(0.062)
+        self.fsm.feed_game_log_line("Starting UI state machine 'death/StateMachine'...")
+
+        # Ложный килл откачен в 0, реальная смерть зафиксирована как 1
+        self.assertEqual(self.fsm.kills, 0, "Ложный килл должен быть откачен!")
+        self.assertEqual(self.fsm.deaths, 1, "Реальная смерть должна быть зафиксирована!")
+
+    def test_late_death_screen_no_rollback_after_075s(self):
+        """Экран смерти позже 0.75с после таймаута не откатывает настоящий килл."""
+        self._start_standard_match()
+        self.fsm.feed_nvidia_line("Posted Request HLSetVideo[real_kill]")
+        self.clock.advance(1.21)
+        self.assertEqual(self.fsm.kills, 1)
+
+        # Прошло 1.5с (>0.75с)
+        self.clock.advance(1.5)
+        self.fsm.feed_game_log_line("Starting UI state machine 'death/StateMachine'...")
+
+        # Настоящий килл сохранен
+        self.assertEqual(self.fsm.kills, 1)
+
+        # Затем приходит хайлайт гибели и спаривается с открытым экраном
+        self.fsm.feed_nvidia_line("Posted Request HLSetVideo[subsequent_death]")
+        self.assertEqual(self.fsm.kills, 1)
+        self.assertEqual(self.fsm.deaths, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.5"
+APP_VERSION = "v0.11.6"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -1026,14 +1026,13 @@ class AppApi:
                 target_exe = current_exe
             target_dir = os.path.dirname(target_exe)
 
-            # Очистка переменных окружения PyInstaller во избежание сбоя _MEIPASS2 в дочернем процессе
+            # Полная очистка окружения PyInstaller (по стандарту v0.10.4)
             clean_env = os.environ.copy()
-            clean_env.pop('_MEIPASS2', None)
-            clean_env.pop('_MEIPASS', None)
-            if hasattr(sys, '_MEIPASS'):
-                meipass = getattr(sys, '_MEIPASS')
-                paths = clean_env.get('PATH', '').split(os.pathsep)
-                clean_env['PATH'] = os.pathsep.join([p for p in paths if p and os.path.abspath(p) != os.path.abspath(meipass)])
+            for k in list(clean_env.keys()):
+                if k.startswith(('_PYI_', '_MEI', 'PYINSTALLER')):
+                    clean_env.pop(k, None)
+            paths = clean_env.get('PATH', '').split(os.pathsep)
+            clean_env['PATH'] = os.pathsep.join([p for p in paths if p and '_MEI' not in p])
 
             # Файл журнала обновления
             appdata_dir = os.environ.get('APPDATA', '')
@@ -1048,6 +1047,8 @@ class AppApi:
             bat_path = os.path.join(temp_dir, f"kd_update_{int(time.time())}.bat")
             bat_content = (
                 "@echo off\r\n"
+                "set _PYI_APPLICATION_HOME_DIR=\r\n"
+                "set _PYI_PARENT_PROCESS_LEVEL=\r\n"
                 "set _MEIPASS2=\r\n"
                 "set _MEIPASS=\r\n"
                 f'echo [%date% %time%] [UPDATE_START] temp_setup="{temp_setup}" target_exe="{target_exe}" >> "{update_log}"\r\n'

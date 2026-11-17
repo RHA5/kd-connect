@@ -152,6 +152,11 @@ class CombatStateMachine:
         self.is_warming_up = False
         self._deferred_warmup_end_stats = None
 
+        # Якорь загрузки уровня и компенсирующий откат запоздалого экрана смерти
+        self.is_level_loading = False
+        self.last_loading_ended_at = 0.0
+        self.last_timeout_kill = None
+
     def _log_info(self, msg):
         if not self.is_warming_up:
             log.info(msg)
@@ -284,6 +289,13 @@ class CombatStateMachine:
                 self._log_info(f"[RAW:Game.log] FSM: {line}")
                 if "eLFSMI_ReconnectFastforward" in line:
                     self.is_reconnect_fastforward = True
+
+            if "to (eLS_Loading)" in line or "Starting UI state machine 'loading/StateMachine'" in line:
+                self.is_level_loading = True
+
+            if "to (eLS_Game)" in line or "Stopping UI state machine 'loading/StateMachine'" in line:
+                self.is_level_loading = False
+                self.last_loading_ended_at = self.clock.monotonic()
 
             if "UI state machine" in line and any(
                 tag in line for tag in (
@@ -447,8 +459,29 @@ class CombatStateMachine:
                         except Exception:
                             pass
                     self.death_screen_paired = True
+                    self.last_timeout_kill = None
                     if not self.is_warming_up:
                         self._record_death(matched["time"])
+                else:
+                    # Буфер пуст. Проверяем осторожный компенсирующий откат ложного килла по таймауту
+                    if (
+                        self.last_timeout_kill
+                        and len(self.pending_highlights) == 0
+                        and (now - self.last_timeout_kill["time"]) <= 0.75
+                    ):
+                        timeout_delta = now - self.last_timeout_kill["time"]
+                        log.warning(
+                            f"[DECISION:ROLLBACK] ОТКАТ ЛОЖНОГО КИЛЛА: Экран смерти открылся через {timeout_delta:.3f}с "
+                            f"после подтверждения по таймауту (гонка UI при загрузке)"
+                        )
+                        self.kills = max(0, self.kills - 1)
+                        if self.last_timeout_kill.get("is_trade"):
+                            self.trades = max(0, self.trades - 1)
+                        self.last_kill_time = 0
+                        self.last_timeout_kill = None
+                        self.death_screen_paired = True
+                        if not self.is_warming_up:
+                            self._record_death(now)
                 return
 
             if "Stopping UI state machine 'death/StateMachine'" in line:
@@ -527,9 +560,17 @@ class CombatStateMachine:
 
                 # Иначе: кандидат на фраг (КИЛЛ в живом состоянии)
                 # Ожидаем окно подтверждения (1.2 сек)
+                # Динамическое окно подтверждения: 3.0 с если идет загрузка или прошло <= 10.0 с после конца загрузки уровня
+                is_recent_loading = (
+                    self.is_level_loading
+                    or (self.last_loading_ended_at > 0 and (now - self.last_loading_ended_at) <= 10.0)
+                )
+                timeout_window = 3.0 if is_recent_loading else self.KILL_CONFIRMATION_TIMEOUT
+
                 highlight_id = uuid.uuid4().hex
-                log.info(f"[DECISION] КАНДИДАТ НА КИЛЛ: Хайлайт {highlight_id[:8]} поставлен в буфер подтверждения на {self.KILL_CONFIRMATION_TIMEOUT}с")
-                timer = self.scheduler.schedule(self.KILL_CONFIRMATION_TIMEOUT, self._on_highlight_timeout, args=[highlight_id])
+                suffix = " (после загрузки уровня)" if is_recent_loading else ""
+                log.info(f"[DECISION] КАНДИДАТ НА КИЛЛ: Хайлайт {highlight_id[:8]} поставлен в буфер подтверждения на {timeout_window}с{suffix}")
+                timer = self.scheduler.schedule(timeout_window, self._on_highlight_timeout, args=[highlight_id])
                 self.pending_highlights.append({
                     "id": highlight_id,
                     "time": now,
@@ -561,7 +602,12 @@ class CombatStateMachine:
                 self._record_death(target["time"])
             else:
                 log.info(f"[DECISION] ПОДТВЕРЖДЕН КИЛЛ ПО ТАЙМАУТУ: Хайлайт {highlight_id[:8]} подтвержден как убийство охотника (экранов смерти не появилось)")
-                self._record_kill(target["time"])
+                is_trade = self._record_kill(target["time"])
+                self.last_timeout_kill = {
+                    "time": self.clock.monotonic(),
+                    "is_trade": is_trade,
+                    "highlight_id": highlight_id
+                }
 
     def _record_kill(self, timestamp):
         self.kills += 1
@@ -581,6 +627,7 @@ class CombatStateMachine:
                 self.on_event(ev_type, 1, self._get_match_stats())
             except Exception:
                 pass
+        return is_trade
 
     def _record_death(self, timestamp):
         # Защита от повторной фиксации одной и той же смерти
@@ -596,6 +643,7 @@ class CombatStateMachine:
             self.trades += 1
             is_trade = True
 
+        self.last_timeout_kill = None
         self.last_death_time = timestamp
         log.info(f"[EVENT:DEATH] Зафиксирована гибель #{self.deaths} (is_trade={is_trade}, trades_total={self.trades})")
 
@@ -614,6 +662,7 @@ class CombatStateMachine:
                 except Exception:
                     pass
         self.pending_highlights.clear()
+        self.last_timeout_kill = None
 
     def _pause_for_reconnect(self, reason):
         """Ставит матч на паузу при аварийном выходе / Alt+F4 и запускает 47-минутный таймер."""
