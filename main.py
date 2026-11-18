@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.10"
+APP_VERSION = "v0.11.11"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -643,6 +643,7 @@ class AppApi:
                     if self.engine and hasattr(self.engine, 'network_sync'):
                         self.engine.network_sync.set_current_session_id(data.get('session_id'))
                         self.engine.network_sync.set_manual_conflict(False)
+                        self.engine.network_sync._last_mismatch_session_id = None
                     self._pending_auto_start = None
                 else:
                     log.warning(f"[SESSION:START_ERR] Ошибка создания: {data.get('error')}")
@@ -762,6 +763,7 @@ class AppApi:
             if not sid:
                 sid = self.engine.network_sync.get_current_session_id() or getattr(self.engine.network_sync, '_last_mismatch_session_id', None)
             self.engine.network_sync.set_current_session_id(None)
+            self.engine.network_sync.session_lost = False
             # Не вызываем clear_pending_matches(): сохраняем матчи на диске для гарантированной доставки
         if self.engine and hasattr(self.engine, 'state_machine'):
             self.engine.state_machine.session_active = False

@@ -273,6 +273,66 @@ class TestSessionBinding(unittest.TestCase):
         self.assertTrue(res.get("success"))
         self.assertEqual(api._suppressed_session_id, "sess-mismatched-777")
 
+    def test_e2e_session_mismatch_force_close_and_resurrection_suppression(self):
+        from main import AppApi
+        import io
+        import urllib.error
+        import unittest.mock as mock
+        api = AppApi()
+
+        class DummyStateMachine:
+            def __init__(self):
+                self.session_active = True
+
+        class DummyEngine:
+            def __init__(self, net):
+                self.network_sync = net
+                self.state_machine = DummyStateMachine()
+
+        engine = DummyEngine(self.net)
+        api.set_engine(engine)
+
+        # 1. Сессия активна, отправка матча падает с 409 session_mismatch
+        self.net.set_current_session_id("sess-stale-999")
+        self.net.session_lost = False
+        item = {"event_id": "mismatch-evt", "kills": 1, "deaths": 0}
+
+        fake_err = urllib.error.HTTPError(
+            url="http://fake", code=409, msg="Conflict", hdrs={},
+            fp=io.BytesIO(b'{"session_mismatch": true, "error": "Session mismatch"}')
+        )
+        with mock.patch("urllib.request.urlopen", side_effect=fake_err), \
+             mock.patch("config_manager.load_config", return_value={"sync_token": "tok"}):
+            self.net.send_match_pulse({"match_id": "m1", "kills": 1, "deaths": 0})
+
+        # 2. network_sync зафиксировал session_lost и сохранил _last_mismatch_session_id
+        self.assertTrue(self.net.session_lost)
+        self.assertEqual(self.net._last_mismatch_session_id, "sess-stale-999")
+        self.assertIsNone(self.net.get_current_session_id())
+
+        # 3. UI вызывает force_close_session_local()
+        res = api.force_close_session_local()
+        self.assertTrue(res.get("success"))
+        self.assertFalse(self.net.session_lost)
+        self.assertEqual(api._suppressed_session_id, "sess-stale-999")
+
+        # 4. Polling check_active_session() получает от сервера старую сессию
+        fake_pulse_resp = io.BytesIO(b'{"success": true, "active_session": {"session_id": "sess-stale-999"}}')
+        with mock.patch("urllib.request.urlopen", return_value=fake_pulse_resp), \
+             mock.patch("config_manager.load_config", return_value={"sync_token": "tok"}):
+            status = api.check_active_session()
+            self.assertIsNone(status.get("active_session"))
+
+        # 5. При старте новой сессии подавление и _last_mismatch_session_id очищаются
+        fake_start_resp = io.BytesIO(b'{"success": true, "session_id": "sess-new-1000"}')
+        with mock.patch("urllib.request.urlopen", return_value=fake_start_resp), \
+             mock.patch("config_manager.load_config", return_value={"sync_token": "tok"}):
+            start_res = api.start_session()
+            self.assertTrue(start_res.get("success"))
+            self.assertIsNone(api._suppressed_session_id)
+            self.assertIsNone(self.net._last_mismatch_session_id)
+            self.assertEqual(self.net.get_current_session_id(), "sess-new-1000")
+
 
 if __name__ == "__main__":
     unittest.main()
