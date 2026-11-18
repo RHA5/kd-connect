@@ -28,6 +28,7 @@ class TestPreviewHtml(unittest.TestCase):
         # Dialogs
         self.assertIn('id="modal-confirm-combat"', self.html)
         self.assertIn('id="modal-confirm-pending"', self.html)
+        self.assertIn('id="modal-verify-error"', self.html)
 
         # Отчет полностью удален
         self.assertNotIn('id="modal-report"', self.html)
@@ -36,13 +37,14 @@ class TestPreviewHtml(unittest.TestCase):
         self.assertNotIn('report', self.html.lower())
 
         # Banners
-        self.assertIn('id="nvidia-hint-banner"', self.html)
+        self.assertNotIn('id="nvidia-hint-banner"', self.html)
         self.assertIn('id="active-manual-conflict-box"', self.html)
         self.assertIn('id="verify-server-error"', self.html)
 
     def test_functions_exist(self):
         self.assertIn("openConfirmCombatModal", self.html)
         self.assertIn("openConfirmPendingModal", self.html)
+        self.assertIn("openVerifyErrorModal", self.html)
         self.assertNotIn("openReportModal", self.html)
         self.assertNotIn("submitErrorReport", self.html)
         self.assertIn("startWindowDrag", self.html)

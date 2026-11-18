@@ -203,14 +203,14 @@ class TestAutostart(unittest.TestCase):
         with open(preview_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        self.assertIn('id="session-autostart-banner"', content)
-        self.assertIn('Сессия начата автоматически', content)
+        self.assertNotIn('id="session-autostart-banner"', content)
+        self.assertNotIn('Сессия начата автоматически', content)
         self.assertIn('id="toggle-autostart"', content)
         self.assertIn('handleToggleAutostart', content)
         self.assertIn('Начинать сессию автоматически', content)
-        self.assertIn('id="idle-pending-autostart-msg"', content)
-        self.assertIn('Ждём связь, сессия начнётся автоматически', content)
-        self.assertIn('На сайте идёт ручная сессия. Автостарт выключен до её завершения', content)
+        self.assertNotIn('id="idle-pending-autostart-msg"', content)
+        self.assertNotIn('Ждём связь, сессия начнётся автоматически', content)
+        self.assertIn('На сайте kdmetrika.ru открыта ручная сессия', content)
 
 
 if __name__ == "__main__":

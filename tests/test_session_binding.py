@@ -205,9 +205,10 @@ class TestSessionBinding(unittest.TestCase):
 
         # Check required DOM elements
         self.assertIn('id="idle-offline-box"', content)
-        self.assertIn('id="session-reused-banner"', content)
-        self.assertIn('id="session-lost-banner"', content)
+        self.assertNotIn('id="session-reused-banner"', content)
+        self.assertNotIn('id="session-lost-banner"', content)
         self.assertIn('consume_session_lost', content)
+        self.assertIn('force_close_session_local', content)
         self.assertIn('reused_existing', content)
         self.assertIn('already_closed', content)
         self.assertIn('session_mismatch', content)

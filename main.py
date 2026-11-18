@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.8"
+APP_VERSION = "v0.11.9"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -316,6 +316,7 @@ class AppApi:
         self.engine = None
         self._pending_auto_start = None
         self._autostarted_match_ids = set()
+        self._suppressed_session_id = None
 
     def set_engine(self, engine):
         self.engine = engine
@@ -608,6 +609,7 @@ class AppApi:
             return {"success": False, "error": "Сервер синхронизации временно недоступен"}
 
     def start_session(self, mood_rating=None, retroactive_created_at=None, auto=False):
+        self._suppressed_session_id = None
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
         if not token:
@@ -759,6 +761,20 @@ class AppApi:
             return self.engine.network_sync.consume_session_lost()
         return False
 
+    def force_close_session_local(self):
+        sid = None
+        if self.engine and hasattr(self.engine, 'network_sync'):
+            sid = self.engine.network_sync.get_current_session_id()
+            self.engine.network_sync.set_current_session_id(None)
+            self.engine.network_sync.clear_pending_matches()
+        if self.engine and hasattr(self.engine, 'state_machine'):
+            self.engine.state_machine.session_active = False
+        self._pending_auto_start = None
+        if sid:
+            self._suppressed_session_id = sid
+        log.info(f"[SESSION:FORCE_CLOSE_LOCAL] Сессия {sid} принудительно закрыта локально")
+        return {"success": True}
+
     def _delivery_state(self):
         """Состояние доставки матчей для интерфейса (этап 16)."""
         if self.engine and hasattr(self.engine, 'network_sync'):
@@ -821,6 +837,10 @@ class AppApi:
                 resp_data = json.loads(resp.read().decode())
                 if resp_data.get("success"):
                     active_sess = resp_data.get("active_session")
+                    if active_sess and active_sess.get("session_id") == self._suppressed_session_id:
+                        active_sess = None
+                    elif active_sess and active_sess.get("session_id") != self._suppressed_session_id:
+                        self._suppressed_session_id = None
                     if self.engine and hasattr(self.engine, 'network_sync'):
                         sess_id = active_sess.get("session_id") if active_sess else None
                         self.engine.network_sync.set_current_session_id(sess_id)
