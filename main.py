@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.9"
+APP_VERSION = "v0.11.10"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -132,11 +132,6 @@ def _handle_autostart_check(data):
             "last_attempt": time.time()
         }
         log.info(f"[SESSION:AUTO_START_PENDING] Сессия будет запущена автоматически при восстановлении связи [match_id={match_id}]")
-        if webview.windows:
-            try:
-                webview.windows[0].evaluate_js("window.onAutoStartPending && window.onAutoStartPending()")
-            except Exception:
-                pass
 
 
 def on_session_change(is_active, data):
@@ -761,18 +756,19 @@ class AppApi:
             return self.engine.network_sync.consume_session_lost()
         return False
 
-    def force_close_session_local(self):
-        sid = None
+    def force_close_session_local(self, session_id=None):
+        sid = session_id
         if self.engine and hasattr(self.engine, 'network_sync'):
-            sid = self.engine.network_sync.get_current_session_id()
+            if not sid:
+                sid = self.engine.network_sync.get_current_session_id() or getattr(self.engine.network_sync, '_last_mismatch_session_id', None)
             self.engine.network_sync.set_current_session_id(None)
-            self.engine.network_sync.clear_pending_matches()
+            # Не вызываем clear_pending_matches(): сохраняем матчи на диске для гарантированной доставки
         if self.engine and hasattr(self.engine, 'state_machine'):
             self.engine.state_machine.session_active = False
         self._pending_auto_start = None
         if sid:
-            self._suppressed_session_id = sid
-        log.info(f"[SESSION:FORCE_CLOSE_LOCAL] Сессия {sid} принудительно закрыта локально")
+            self._suppressed_session_id = str(sid)
+        log.info(f"[SESSION:FORCE_CLOSE_LOCAL] Сессия {sid} локально отключена (очередь матчей сохранена)")
         return {"success": True}
 
     def _delivery_state(self):

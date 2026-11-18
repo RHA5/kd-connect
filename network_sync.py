@@ -29,6 +29,7 @@ class NetworkSync:
     def __init__(self):
         self.lock = threading.Lock()
         self.current_session_id = None
+        self._last_mismatch_session_id = None
         self.session_lost = False
         self.manual_conflict = False
         self._waiting_session_logged = False
@@ -310,6 +311,8 @@ class NetworkSync:
                 with self.lock:
                     self.retry_queue = [x for x in self.retry_queue if x.get("event_id") != event_id]
                     self._persist_queue()
+                    if self.current_session_id:
+                        self._last_mismatch_session_id = self.current_session_id
                     self.current_session_id = None
                     self.session_lost = True
                 log.warning(f"[NET:SESSION_MISMATCH] Матч {event_id} отклонен сервером (сессия уже закрыта). Удален из очереди. Сессия сброшена.")
@@ -565,6 +568,8 @@ class NetworkSync:
                         if self.retry_queue and self.retry_queue[0].get("event_id") == item.get("event_id"):
                             self.retry_queue.pop(0)
                             self._persist_queue()
+                        if self.current_session_id:
+                            self._last_mismatch_session_id = self.current_session_id
                         self.current_session_id = None
                         self.session_lost = True
                     continue

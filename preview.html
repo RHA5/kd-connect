@@ -735,7 +735,7 @@
           <span class="text-zinc-700 font-mono">/</span>
           <span class="text-sm font-bold uppercase tracking-wider font-mono text-zinc-300">Настройки</span>
         </div>
-        <span class="text-xs text-zinc-400 font-mono"><span id="app-version-label">v0.11.9</span></span>
+        <span class="text-xs text-zinc-400 font-mono"><span id="app-version-label">v0.11.10</span></span>
       </div>
       <div class="flex-1 p-3 space-y-2 overflow-y-auto custom-scroll text-sm">
         <!-- Статус 1: NVIDIA -->
@@ -1087,10 +1087,6 @@
       document.getElementById('section-active').classList.remove('hidden');
       document.getElementById('app-status-dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-glow-green';
       document.getElementById('app-status-dot').title = 'Сессия активна';
-    };
-    window.onAutoStartPending = function() {
-      const pendingAutostartMsg = document.getElementById('idle-pending-autostart-msg');
-      if (pendingAutostartMsg) pendingAutostartMsg.classList.remove('hidden');
     };
     window.onManualConflict = function(data) {
       const conflictBox = document.getElementById('idle-manual-conflict-box');
@@ -1625,7 +1621,7 @@
             closeConfirmPendingModal();
             closeVerifyErrorModal();
             if (window.pywebview && window.pywebview.api && window.pywebview.api.force_close_session_local) {
-              try { await window.pywebview.api.force_close_session_local(); } catch(e) {}
+              try { await window.pywebview.api.force_close_session_local(currentSessionSnapshot && currentSessionSnapshot.sessionId); } catch(e) {}
             }
             isSessionActive = false;
             resetSessionUi();
@@ -2041,7 +2037,7 @@
             const isVerify = !document.getElementById('section-verify').classList.contains('hidden');
             if (!isCombat && !isVerify && isSessionActive) {
               if (window.pywebview.api.force_close_session_local) {
-                try { await window.pywebview.api.force_close_session_local(); } catch(e) {}
+                try { await window.pywebview.api.force_close_session_local(currentSessionSnapshot && currentSessionSnapshot.sessionId); } catch(e) {}
               }
               isSessionActive = false;
               resetSessionUi();
@@ -2431,11 +2427,7 @@ ${res.path}`);
           if (autostartToggle && res.auto_start_session !== undefined) {
             autostartToggle.checked = Boolean(res.auto_start_session);
           }
-          const pendingAutostartMsg = document.getElementById('idle-pending-autostart-msg');
-          if (pendingAutostartMsg) {
-            if (res.pending_auto_start) pendingAutostartMsg.classList.remove('hidden');
-            else pendingAutostartMsg.classList.add('hidden');
-          }
+
         }
         if (res && res.success) {
           const isDisclaimerHidden = document.getElementById('section-disclaimer').classList.contains('hidden');

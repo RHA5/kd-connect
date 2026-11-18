@@ -223,6 +223,56 @@ class TestSessionBinding(unittest.TestCase):
         self.assertIsNotNone(match, "APP_VERSION не найден в main.py")
         self.assertIn(match.group(1), content)
 
+    def test_force_close_session_local_preserves_queue_and_suppresses(self):
+        from main import AppApi
+        api = AppApi()
+
+        class DummyStateMachine:
+            def __init__(self):
+                self.session_active = True
+
+        class DummyEngine:
+            def __init__(self, net):
+                self.network_sync = net
+                self.state_machine = DummyStateMachine()
+
+        engine = DummyEngine(self.net)
+        api.set_engine(engine)
+
+        self.net.set_current_session_id("sess-to-force-close")
+        self.net.retry_queue = [{"event_id": "match-keep-1", "kills": 2}]
+
+        res = api.force_close_session_local()
+        self.assertTrue(res.get("success"))
+        self.assertIsNone(self.net.get_current_session_id())
+        self.assertFalse(engine.state_machine.session_active)
+        self.assertEqual(api._suppressed_session_id, "sess-to-force-close")
+        self.assertEqual(len(self.net.retry_queue), 1)
+        self.assertEqual(self.net.retry_queue[0]["event_id"], "match-keep-1")
+
+    def test_force_close_uses_last_mismatch_sid_when_sid_already_none(self):
+        from main import AppApi
+        api = AppApi()
+
+        class DummyStateMachine:
+            def __init__(self):
+                self.session_active = True
+
+        class DummyEngine:
+            def __init__(self, net):
+                self.network_sync = net
+                self.state_machine = DummyStateMachine()
+
+        engine = DummyEngine(self.net)
+        api.set_engine(engine)
+
+        self.net.current_session_id = None
+        self.net._last_mismatch_session_id = "sess-mismatched-777"
+
+        res = api.force_close_session_local()
+        self.assertTrue(res.get("success"))
+        self.assertEqual(api._suppressed_session_id, "sess-mismatched-777")
+
 
 if __name__ == "__main__":
     unittest.main()
