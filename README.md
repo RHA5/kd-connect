@@ -72,6 +72,12 @@ powershell -ExecutionPolicy Bypass -File tools/build_release.ps1
 
 ---
 
+## Благодарности (Credits)
+
+Особая благодарность **[Global Mentor](https://www.twitch.tv/globalmentor)** за экспертную помощь, менторство и неоценимый вклад в архитектуру приложения и алгоритмы надежного считывания боевых событий.
+
+---
+
 ## Лицензия
 
 Распространяется под свободной лицензией [MIT](LICENSE).
