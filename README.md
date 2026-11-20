@@ -38,8 +38,9 @@
 
 ### 1. Установка окружения
 ```bash
-# Клонирование репозитория
-git clone https://gitflic.ru/project/kd-metrika/kd-connect.git
+# Клонирование репозитория (основной GitHub или зеркало GitFlic)
+git clone https://github.com/RHA5/kd-connect.git
+# или: git clone https://gitflic.ru/project/kd-metrika/kd-connect.git
 cd kd-connect
 
 # Установка Python-зависимостей
@@ -66,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File tools/build_release.ps1
 Скрипт автоматически:
 1. Компилирует Tailwind CSS v3 и встраивает его в `preview.html`.
 2. Собирает независимый исполняемый файл `dist/KD-Connect.exe` через PyInstaller.
-3. Собирает установщик `installer/KD-Connect-Setup-v0.10.7.exe` через Inno Setup.
+3. Собирает установщик `installer/KD-Connect-Setup-v0.12.1.exe` через Inno Setup.
 4. Вычисляет контрольные суммы SHA-256 (`sha256_exe`, `sha256_setup`).
 5. Копирует артефакты в каталог загрузок и обновляет манифест `version.json`.
 
