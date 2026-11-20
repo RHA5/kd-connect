@@ -16,8 +16,7 @@ DEFAULT_CONFIG = {
     "custom_hunt_path": "",
     "api_base_url": "https://kdmetrika.ru",
     "hide_disclaimer": False,
-    "onboarding_completed": False,
-    "auto_start_session": True
+    "onboarding_completed": False
 }
 
 def ensure_app_data_dir():
@@ -38,6 +37,7 @@ def load_config():
                 if isinstance(data, dict):
                     merged = DEFAULT_CONFIG.copy()
                     merged.update(data)
+                    merged.pop("auto_start_session", None)
                     save_config(merged)
                     return merged
             except Exception as e:
@@ -51,6 +51,10 @@ def load_config():
         if isinstance(data, dict):
             merged = DEFAULT_CONFIG.copy()
             merged.update(data)
+            # Миграция v0.12.0: автостарт стал Always-On системным поведением
+            if "auto_start_session" in merged or "auto_start_session" in data:
+                merged.pop("auto_start_session", None)
+                save_config(merged)
             return merged
         raise ValueError("config.json содержит невалидный JSON объект")
     except Exception as e:
@@ -62,6 +66,7 @@ def load_config():
                 if isinstance(bak_data, dict):
                     merged = DEFAULT_CONFIG.copy()
                     merged.update(bak_data)
+                    merged.pop("auto_start_session", None)
                     log.info("[CONFIG:RESTORE] Конфигурация успешно восстановлена из config.json.bak")
                     save_config(merged)
                     return merged

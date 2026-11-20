@@ -29,6 +29,9 @@ class TestPreviewHtml(unittest.TestCase):
         self.assertIn('id="modal-confirm-combat"', self.html)
         self.assertIn('id="modal-confirm-pending"', self.html)
         self.assertIn('id="modal-verify-error"', self.html)
+        self.assertNotIn('id="modal-pending"', self.html)
+        self.assertNotIn('id="toggle-autostart"', self.html)
+        self.assertIn('Полный сброс настроек', self.html)
 
         # Отчет полностью удален
         self.assertNotIn('id="modal-report"', self.html)
@@ -50,6 +53,9 @@ class TestPreviewHtml(unittest.TestCase):
         self.assertNotIn("onAutoStartPending", self.html)
         self.assertNotIn("openReportModal", self.html)
         self.assertNotIn("submitErrorReport", self.html)
+        self.assertNotIn("get_pending_matches", self.html)
+        self.assertNotIn("handleToggleAutostart", self.html)
+        self.assertNotIn("pendingMatchesState", self.html)
         self.assertIn("startWindowDrag", self.html)
         self.assertIn("startMatchTimer", self.html)
         self.assertIn("stopMatchTimer", self.html)
@@ -109,6 +115,12 @@ class TestPreviewHtml(unittest.TestCase):
         self.assertIn("const total = Math.max(0, Math.floor(Number(finalDur) || 0));", self.html)
         self.assertIn("const mm = Math.floor(total / 60).toString().padStart(2, '0');", self.html)
         self.assertIn("const ss = (total % 60).toString().padStart(2, '0');", self.html)
+
+    def test_section_verify_typography(self):
+        match = re.search(r'<div id="section-verify"[\s\S]*?<div id="settings-view"', self.html)
+        self.assertIsNotNone(match)
+        verify_html = match.group(0)
+        self.assertNotIn('font-mono', verify_html)
 
 
 if __name__ == "__main__":

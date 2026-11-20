@@ -33,8 +33,7 @@ class TestAutostart(unittest.TestCase):
 
         config_manager.save_config({
             "sync_token": "test_token_12345",
-            "api_base_url": "https://kdmetrika.ru",
-            "auto_start_session": True
+            "api_base_url": "https://kdmetrika.ru"
         })
         self.net = NetworkSync()
         self.api = main.AppApi()
@@ -52,9 +51,8 @@ class TestAutostart(unittest.TestCase):
         config_manager.PENDING_MATCHES_FILE = self.orig_pending_file
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_default_config_has_auto_start_session(self):
-        self.assertIn("auto_start_session", config_manager.DEFAULT_CONFIG)
-        self.assertTrue(config_manager.DEFAULT_CONFIG["auto_start_session"])
+    def test_default_config_has_no_auto_start_session(self):
+        self.assertNotIn("auto_start_session", config_manager.DEFAULT_CONFIG)
 
     def test_autostart_payload_format(self):
         captured_payload = None
@@ -105,8 +103,16 @@ class TestAutostart(unittest.TestCase):
         main._handle_autostart_check(data)
         self.assertEqual(len(start_calls), 1)
 
-    def test_autostart_skips_when_disabled(self):
-        config_manager.update_config_value("auto_start_session", False)
+    def test_autostart_triggers_even_with_legacy_disabled_config(self):
+        # Миграция: если у пользователя в старом файле было false, автостарт все равно работает
+        with open(config_manager.CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump({"sync_token": "test_token_12345", "auto_start_session": False}, f)
+        cfg = config_manager.load_config()
+        self.assertNotIn("auto_start_session", cfg)
+        with open(config_manager.CONFIG_FILE, 'r', encoding='utf-8') as f:
+            disk_cfg = json.load(f)
+        self.assertNotIn("auto_start_session", disk_cfg)
+
         called = False
 
         def fake_start(*args, **kwargs):
@@ -116,7 +122,7 @@ class TestAutostart(unittest.TestCase):
 
         self.api.start_session = fake_start
         main._handle_autostart_check({"match_id": "m1", "game_mode": "BountyHunt", "start_time": time.time()})
-        self.assertFalse(called)
+        self.assertTrue(called)
 
     def test_autostart_skips_when_session_active_locally(self):
         self.net.set_current_session_id("existing-active-session")
@@ -205,9 +211,11 @@ class TestAutostart(unittest.TestCase):
 
         self.assertNotIn('id="session-autostart-banner"', content)
         self.assertNotIn('Сессия начата автоматически', content)
-        self.assertIn('id="toggle-autostart"', content)
-        self.assertIn('handleToggleAutostart', content)
-        self.assertIn('Начинать сессию автоматически', content)
+        self.assertNotIn('id="toggle-autostart"', content)
+        self.assertNotIn('handleToggleAutostart', content)
+        self.assertNotIn('id="modal-pending"', content)
+        self.assertNotIn('get_pending_matches', content)
+        self.assertNotIn('pendingMatchesState', content)
         self.assertNotIn('id="idle-pending-autostart-msg"', content)
         self.assertNotIn('Ждём связь, сессия начнётся автоматически', content)
         self.assertIn('На сайте kdmetrika.ru открыта ручная сессия', content)

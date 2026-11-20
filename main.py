@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.11.11"
+APP_VERSION = "v0.12.0"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -85,9 +85,6 @@ def _handle_autostart_check(data):
     api = _global_api
     if not api:
         return
-    config = config_manager.load_config()
-    if not config.get("auto_start_session", True):
-        return
     if api.engine and hasattr(api.engine, 'network_sync'):
         if api.engine.network_sync.get_current_session_id():
             return
@@ -125,7 +122,7 @@ def _handle_autostart_check(data):
                 webview.windows[0].evaluate_js(f"window.onManualConflict && window.onManualConflict({json.dumps(res)})")
             except Exception:
                 pass
-    else:
+    elif res.get("offline"):
         api._pending_auto_start = {
             "match_id": match_id,
             "start_time": iso_created_at,
@@ -316,24 +313,8 @@ class AppApi:
     def set_engine(self, engine):
         self.engine = engine
 
-    def set_auto_start_session(self, val):
-        config_manager.update_config_value("auto_start_session", bool(val))
-        return {"success": True}
-
-    def get_auto_start_session(self):
-        config = config_manager.load_config()
-        return bool(config.get("auto_start_session", True))
-
     def on_frontend_ready(self):
-        if sys.platform == 'win32' and webview.windows:
-            try:
-                form = webview.windows[0].native
-                if form and hasattr(form, 'Controls') and form.Controls.Count > 0:
-                    wv_ctrl = form.Controls[0]
-                    from System.Windows.Forms import MethodInvoker
-                    form.Invoke(MethodInvoker(lambda: setattr(wv_ctrl, 'Visible', True)))
-            except Exception as ex:
-                log.warning(f"on_frontend_ready error: {ex}")
+        # Видимость WebView2 не трогаем: смена Visible вне UI-потока ломает COM
         return True
 
     def show_window(self):
@@ -374,47 +355,6 @@ class AppApi:
         except Exception:
             pass
         return ""
-
-    def get_pending_matches(self):
-        try:
-            if not self.engine or not hasattr(self.engine, 'network_sync'):
-                return {"has_pending": False, "count": 0, "kills": 0, "deaths": 0}
-            matches = self.engine.network_sync.get_pending_matches()
-            if not matches:
-                return {"has_pending": False, "count": 0, "kills": 0, "deaths": 0}
-
-            count = len(matches)
-            kills = sum(int(m.get("kills", 0)) for m in matches)
-            deaths = sum(int(m.get("deaths", 0)) for m in matches)
-
-            # Вычисляем самое раннее время начала матча
-            earliest_start = min(
-                float(m.get("created_at", time.time())) - float(m.get("duration_seconds", 0))
-                for m in matches
-            )
-            import datetime
-            iso_start = datetime.datetime.fromtimestamp(earliest_start, datetime.timezone.utc).isoformat()
-
-            return {
-                "has_pending": True,
-                "count": count,
-                "kills": kills,
-                "deaths": deaths,
-                "earliest_start": earliest_start,
-                "retroactive_created_at": iso_start
-            }
-        except Exception as e:
-            log.error(f"[PENDING:ERR] {e}")
-            return {"has_pending": False, "count": 0, "kills": 0, "deaths": 0}
-
-    def clear_pending_matches(self):
-        try:
-            if self.engine and hasattr(self.engine, 'network_sync'):
-                self.engine.network_sync.clear_pending_matches()
-            return {"success": True}
-        except Exception as e:
-            log.error(f"[CLEAR:ERR] {e}")
-            return {"success": False, "error": str(e)}
 
     def start_window_drag(self):
         if sys.platform != 'win32':
@@ -796,14 +736,12 @@ class AppApi:
     def check_active_session(self):
         config = config_manager.load_config()
         token = config.get("sync_token", "").strip()
-        auto_enabled = bool(config.get("auto_start_session", True))
         if not token:
             return {
                 "success": False,
                 "active_session": None,
                 "manual_conflict": False,
                 "pending_auto_start": bool(self._pending_auto_start),
-                "auto_start_session": auto_enabled,
                 "delivery": self._delivery_state()
             }
 
@@ -851,7 +789,6 @@ class AppApi:
                         "base_kills": resp_data.get("base_kills", 0),
                         "base_deaths": resp_data.get("base_deaths", 0),
                         "pending_auto_start": bool(self._pending_auto_start),
-                        "auto_start_session": auto_enabled,
                         "delivery": self._delivery_state()
                     }
                 return {
@@ -859,7 +796,6 @@ class AppApi:
                     "active_session": None,
                     "manual_conflict": False,
                     "pending_auto_start": bool(self._pending_auto_start),
-                    "auto_start_session": auto_enabled,
                     "delivery": self._delivery_state()
                 }
         except Exception:
@@ -868,7 +804,6 @@ class AppApi:
                 "active_session": None,
                 "manual_conflict": False,
                 "pending_auto_start": bool(self._pending_auto_start),
-                "auto_start_session": auto_enabled,
                 "delivery": self._delivery_state()
             }
 
@@ -1184,7 +1119,7 @@ if __name__ == '__main__':
         with open(html_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
 
-        window = webview.create_window(
+        webview.create_window(
             'KD Connect',
             html=html_content,
             js_api=api,
@@ -1216,39 +1151,6 @@ if __name__ == '__main__':
             time.sleep(1.0)
             _enable_taskbar_minimize("KD Connect")
         threading.Thread(target=_deferred_taskbar_setup, daemon=True).start()
-
-        def _setup_native_splash():
-            if sys.platform != 'win32':
-                return
-            try:
-                from System.Windows.Forms import ImageLayout, MethodInvoker
-                from System.Drawing import Image
-                form = window.native
-                splash_path = get_asset_path('native_splash.png')
-                if not os.path.exists(splash_path):
-                    exe_dir = os.path.dirname(sys.executable)
-                    alt_splash = os.path.join(exe_dir, 'native_splash.png')
-                    if os.path.exists(alt_splash):
-                        splash_path = alt_splash
-                if os.path.exists(splash_path):
-                    form.BackgroundImage = Image.FromFile(splash_path)
-                    form.BackgroundImageLayout = ImageLayout.Stretch
-                
-                if hasattr(form, 'Controls') and form.Controls.Count > 0:
-                    wv_ctrl = form.Controls[0]
-                    wv_ctrl.Visible = False
-
-                    def _safety_reveal():
-                        time.sleep(1.8)
-                        try:
-                            form.Invoke(MethodInvoker(lambda: setattr(wv_ctrl, 'Visible', True)))
-                        except Exception:
-                            pass
-                    threading.Thread(target=_safety_reveal, daemon=True).start()
-            except Exception as ex:
-                log.warning(f"Не удалось инициализировать нативный splash: {ex}")
-
-        window.events.shown += _setup_native_splash
 
         webview.start(debug=False, icon=icon_path if os.path.exists(icon_path) else None)
         engine.stop()
