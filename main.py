@@ -585,13 +585,16 @@ class AppApi:
                         self.engine.network_sync.set_manual_conflict(False)
                         self.engine.network_sync._last_mismatch_session_id = None
                         if auto:
-                            sm = getattr(self.engine, "state_machine", None)
-                            stats = sm._get_match_stats() if sm else {}
-                            self.engine.network_sync.send_match_state_pulse(
-                                "in_combat" if stats.get("match_id") else "in_lobby",
-                                int(stats.get("kills", 0) or 0),
-                                int(stats.get("deaths", 0) or 0),
-                            )
+                            try:
+                                sm = getattr(self.engine, "state_machine", None)
+                                stats = sm._get_match_stats() if sm else {}
+                                self.engine.network_sync.send_match_state_pulse(
+                                    "in_combat" if stats.get("match_id") else "in_lobby",
+                                    int(stats.get("kills", 0) or 0),
+                                    int(stats.get("deaths", 0) or 0),
+                                )
+                            except Exception as e:
+                                log.warning(f"[SESSION:AUTO_STATE_ERR] Не удалось отправить статус матча: {e}")
                     self._pending_auto_start = None
                 else:
                     log.warning(f"[SESSION:START_ERR] Ошибка создания: {data.get('error')}")
