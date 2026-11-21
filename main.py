@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v0.12.2"
+APP_VERSION = "v0.12.3"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
@@ -309,6 +309,7 @@ class AppApi:
         self._pending_auto_start = None
         self._autostarted_match_ids = set()
         self._suppressed_session_id = None
+        self._last_state_reconcile_time = 0.0
 
     def set_engine(self, engine):
         self.engine = engine
@@ -792,6 +793,32 @@ class AppApi:
                         sess_id = active_sess.get("session_id") if active_sess else None
                         self.engine.network_sync.set_current_session_id(sess_id)
                         self.engine.network_sync.set_manual_conflict(resp_data.get("manual_conflict", False))
+
+                        # Фоновая сверка (Reconciliation) статуса матча при активной авто-сессии
+                        if active_sess and not resp_data.get("manual_conflict") and sess_id:
+                            now = time.time()
+                            if (now - getattr(self, "_last_state_reconcile_time", 0.0)) >= 5.0:
+                                try:
+                                    net_sync = self.engine.network_sync
+                                    if hasattr(net_sync, "state_queue") and net_sync.state_queue.empty():
+                                        sm = getattr(self.engine, "state_machine", None)
+                                        stats = sm._get_match_stats() if sm else {}
+                                        is_in_match = bool(stats.get("match_id"))
+                                        server_state = active_sess.get("match_state")
+                                        if not is_in_match and server_state == "in_combat":
+                                            log.info("[RECONCILIATION] Клиент в лобби, но на сервере статус 'В бою'. Восстановление in_lobby.")
+                                            self._last_state_reconcile_time = now
+                                            net_sync.send_match_state_pulse("in_lobby", 0, 0)
+                                        elif is_in_match and server_state == "in_lobby":
+                                            log.info("[RECONCILIATION] Клиент в матче, но на сервере статус 'В лобби'. Восстановление in_combat.")
+                                            self._last_state_reconcile_time = now
+                                            net_sync.send_match_state_pulse(
+                                                "in_combat",
+                                                int(stats.get("kills", 0) or 0),
+                                                int(stats.get("deaths", 0) or 0),
+                                            )
+                                except Exception as e:
+                                    log.warning(f"[RECONCILIATION_ERR] Ошибка сверки статуса боя: {e}")
                     return {
                         "success": True,
                         "active_session": active_sess,

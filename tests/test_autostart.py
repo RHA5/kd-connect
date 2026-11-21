@@ -260,6 +260,48 @@ class TestAutostart(unittest.TestCase):
             mock_sync.set_current_session_id.assert_called_with("sess-autostart-2")
             mock_sync.send_match_state_pulse.assert_called_with("in_lobby", 0, 0)
 
+    def test_reconciliation_heals_stuck_in_combat_to_in_lobby(self):
+        mock_sync = MagicMock()
+        mock_sync.state_queue.empty.return_value = True
+        self.api.engine.network_sync = mock_sync
+        self.api.engine.state_machine._get_match_stats.return_value = {
+            "match_id": None,
+            "kills": 0,
+            "deaths": 0
+        }
+        self.api._last_state_reconcile_time = 0.0
+
+        with patch("urllib.request.urlopen") as mock_url:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = b'{"success": true, "active_session": {"session_id": "sess-recon-1", "match_state": "in_combat"}}'
+            mock_resp.__enter__.return_value = mock_resp
+            mock_url.return_value = mock_resp
+
+            res = self.api.check_active_session()
+            self.assertTrue(res.get("success"))
+            mock_sync.send_match_state_pulse.assert_called_with("in_lobby", 0, 0)
+
+    def test_reconciliation_heals_dropped_in_combat_when_in_match(self):
+        mock_sync = MagicMock()
+        mock_sync.state_queue.empty.return_value = True
+        self.api.engine.network_sync = mock_sync
+        self.api.engine.state_machine._get_match_stats.return_value = {
+            "match_id": "hunt_match_999",
+            "kills": 3,
+            "deaths": 1
+        }
+        self.api._last_state_reconcile_time = 0.0
+
+        with patch("urllib.request.urlopen") as mock_url:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = b'{"success": true, "active_session": {"session_id": "sess-recon-2", "match_state": "in_lobby"}}'
+            mock_resp.__enter__.return_value = mock_resp
+            mock_url.return_value = mock_resp
+
+            res = self.api.check_active_session()
+            self.assertTrue(res.get("success"))
+            mock_sync.send_match_state_pulse.assert_called_with("in_combat", 3, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
