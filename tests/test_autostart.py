@@ -220,6 +220,46 @@ class TestAutostart(unittest.TestCase):
         self.assertNotIn('Ждём связь, сессия начнётся автоматически', content)
         self.assertIn('На сайте kdmetrika.ru открыта ручная сессия', content)
 
+    def test_autostart_emits_in_combat_when_match_active(self):
+        mock_sync = MagicMock()
+        self.api.engine.network_sync = mock_sync
+        self.api.engine.state_machine._get_match_stats.return_value = {
+            "match_id": "hunt_match_123",
+            "kills": 2,
+            "deaths": 1
+        }
+
+        with patch("urllib.request.urlopen") as mock_url:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = b'{"success": true, "session_id": "sess-autostart-1"}'
+            mock_resp.__enter__.return_value = mock_resp
+            mock_url.return_value = mock_resp
+
+            res = self.api.start_session(auto=True)
+            self.assertTrue(res.get("success"))
+            mock_sync.set_current_session_id.assert_called_with("sess-autostart-1")
+            mock_sync.send_match_state_pulse.assert_called_with("in_combat", 2, 1)
+
+    def test_autostart_emits_in_lobby_when_no_match_id(self):
+        mock_sync = MagicMock()
+        self.api.engine.network_sync = mock_sync
+        self.api.engine.state_machine._get_match_stats.return_value = {
+            "match_id": None,
+            "kills": 0,
+            "deaths": 0
+        }
+
+        with patch("urllib.request.urlopen") as mock_url:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = b'{"success": true, "session_id": "sess-autostart-2"}'
+            mock_resp.__enter__.return_value = mock_resp
+            mock_url.return_value = mock_resp
+
+            res = self.api.start_session(auto=True)
+            self.assertTrue(res.get("success"))
+            mock_sync.set_current_session_id.assert_called_with("sess-autostart-2")
+            mock_sync.send_match_state_pulse.assert_called_with("in_lobby", 0, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
