@@ -229,7 +229,7 @@ class NetworkSync:
         self.wake_event.set()
         return True, {"queued": True, "event_id": event_id}
 
-    def send_match_state_pulse(self, state="in_combat", kills=0, deaths=0):
+    def send_match_state_pulse(self, state="in_combat", kills=0, deaths=0, started_at=None):
         """
         Отправляет промежуточный боевой статус на сервер без создания потоков
         через единую неблокирующую очередь state_queue.
@@ -240,6 +240,8 @@ class NetworkSync:
             "kills": int(kills),
             "deaths": int(deaths)
         }
+        if started_at:
+            payload["started_at"] = started_at
         sid = self.get_current_session_id()
         if sid:
             payload["session_id"] = sid

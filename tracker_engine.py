@@ -1,6 +1,7 @@
 import time
 import threading
 import os
+from datetime import datetime, timezone, timedelta
 import config_manager
 import hunt_detector
 import logger
@@ -9,6 +10,14 @@ from combat_state_machine import CombatStateMachine
 from network_sync import NetworkSync
 
 log = logger.get_logger("Engine")
+
+
+def _calc_started_at_iso(duration_seconds=0):
+    try:
+        dur = max(0, int(duration_seconds or 0))
+        return (datetime.now(timezone.utc) - timedelta(seconds=dur)).isoformat()
+    except Exception:
+        return datetime.now(timezone.utc).isoformat()
 
 
 class TrackerEngine:
@@ -172,7 +181,8 @@ class TrackerEngine:
         stats = self.state_machine._get_match_stats()
         self._save_recovery_snapshot(stats)
         try:
-            self.network_sync.send_match_state_pulse("in_combat", 0, 0)
+            started_at_iso = _calc_started_at_iso(stats.get("duration", 0))
+            self.network_sync.send_match_state_pulse("in_combat", 0, 0, started_at=started_at_iso)
         except Exception as e:
             log.warning(f"[ENGINE:STATE_ERR] Ошибка отправки match_state 'in_combat': {e}")
         if self.on_session_change:
@@ -243,10 +253,12 @@ class TrackerEngine:
         if event_type == "reconnect":
             log.info(f"Восстановление боевой сессии после реконнекта: {current_stats}")
             try:
+                started_at_iso = _calc_started_at_iso(current_stats.get("duration", 0))
                 self.network_sync.send_match_state_pulse(
                     "in_combat",
                     current_stats.get("kills", 0),
-                    current_stats.get("deaths", 0)
+                    current_stats.get("deaths", 0),
+                    started_at=started_at_iso
                 )
             except Exception as e:
                 log.warning(f"[ENGINE:STATE_ERR] Ошибка отправки match_state при реконнекте: {e}")

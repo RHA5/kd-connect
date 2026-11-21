@@ -238,7 +238,9 @@ class TestAutostart(unittest.TestCase):
             res = self.api.start_session(auto=True)
             self.assertTrue(res.get("success"))
             mock_sync.set_current_session_id.assert_called_with("sess-autostart-1")
-            mock_sync.send_match_state_pulse.assert_called_with("in_combat", 2, 1)
+            args, kwargs = mock_sync.send_match_state_pulse.call_args
+            self.assertEqual(args, ("in_combat", 2, 1))
+            self.assertIsNotNone(kwargs.get("started_at"))
 
     def test_autostart_emits_in_lobby_when_no_match_id(self):
         mock_sync = MagicMock()
@@ -258,7 +260,9 @@ class TestAutostart(unittest.TestCase):
             res = self.api.start_session(auto=True)
             self.assertTrue(res.get("success"))
             mock_sync.set_current_session_id.assert_called_with("sess-autostart-2")
-            mock_sync.send_match_state_pulse.assert_called_with("in_lobby", 0, 0)
+            args, kwargs = mock_sync.send_match_state_pulse.call_args
+            self.assertEqual(args, ("in_lobby", 0, 0))
+            self.assertIsNone(kwargs.get("started_at"))
 
     def test_reconciliation_heals_stuck_in_combat_to_in_lobby(self):
         mock_sync = MagicMock()
@@ -288,7 +292,8 @@ class TestAutostart(unittest.TestCase):
         self.api.engine.state_machine._get_match_stats.return_value = {
             "match_id": "hunt_match_999",
             "kills": 3,
-            "deaths": 1
+            "deaths": 1,
+            "duration": 120
         }
         self.api._last_state_reconcile_time = 0.0
 
@@ -300,7 +305,9 @@ class TestAutostart(unittest.TestCase):
 
             res = self.api.check_active_session()
             self.assertTrue(res.get("success"))
-            mock_sync.send_match_state_pulse.assert_called_with("in_combat", 3, 1)
+            args, kwargs = mock_sync.send_match_state_pulse.call_args
+            self.assertEqual(args, ("in_combat", 3, 1))
+            self.assertIsNotNone(kwargs.get("started_at"))
 
 
 if __name__ == "__main__":

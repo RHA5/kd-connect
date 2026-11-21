@@ -39,10 +39,10 @@ WizardImageStretch=yes
 AppMutex=Local\KDConnectSingleInstanceMutex
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=0.12.1.0
+VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
-VersionInfoProductVersion=0.12.1.0
+VersionInfoProductVersion={#MyAppVersion}.0
 VersionInfoDescription=Установщик {#MyAppName}
 VersionInfoCopyright=Copyright (C) 2026 RHA5 (KD Metrika)
 

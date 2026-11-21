@@ -3,6 +3,7 @@ import re
 import sys
 import json
 import time
+import datetime
 import hashlib
 import urllib.parse
 import urllib.request
@@ -589,10 +590,17 @@ class AppApi:
                             try:
                                 sm = getattr(self.engine, "state_machine", None)
                                 stats = sm._get_match_stats() if sm else {}
+                                is_in_match = bool(stats.get("match_id"))
+                                started_at_iso = None
+                                if is_in_match:
+                                    dur = max(0, int(stats.get("duration", 0) or 0))
+                                    started_at_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=dur)
+                                    started_at_iso = started_at_dt.isoformat()
                                 self.engine.network_sync.send_match_state_pulse(
-                                    "in_combat" if stats.get("match_id") else "in_lobby",
+                                    "in_combat" if is_in_match else "in_lobby",
                                     int(stats.get("kills", 0) or 0),
                                     int(stats.get("deaths", 0) or 0),
+                                    started_at=started_at_iso
                                 )
                             except Exception as e:
                                 log.warning(f"[SESSION:AUTO_STATE_ERR] Не удалось отправить статус матча: {e}")
@@ -812,10 +820,14 @@ class AppApi:
                                         elif is_in_match and server_state == "in_lobby":
                                             log.info("[RECONCILIATION] Клиент в матче, но на сервере статус 'В лобби'. Восстановление in_combat.")
                                             self._last_state_reconcile_time = now
+                                            dur = max(0, int(stats.get("duration", 0) or 0))
+                                            started_at_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=dur)
+                                            started_at_iso = started_at_dt.isoformat()
                                             net_sync.send_match_state_pulse(
                                                 "in_combat",
                                                 int(stats.get("kills", 0) or 0),
                                                 int(stats.get("deaths", 0) or 0),
+                                                started_at=started_at_iso,
                                             )
                                 except Exception as e:
                                     log.warning(f"[RECONCILIATION_ERR] Ошибка сверки статуса боя: {e}")
