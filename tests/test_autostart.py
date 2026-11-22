@@ -33,7 +33,7 @@ class TestAutostart(unittest.TestCase):
 
         config_manager.save_config({
             "sync_token": "test_token_12345",
-            "api_base_url": "https://kdmetrika.ru"
+            "api_base_url": "http://127.0.0.1:9999"
         })
         self.net = NetworkSync()
         self.api = main.AppApi()
@@ -44,6 +44,12 @@ class TestAutostart(unittest.TestCase):
 
     def tearDown(self):
         self.net.running = False
+        self.net.wake_event.set()
+        if hasattr(self.net, 'worker_thread') and self.net.worker_thread.is_alive():
+            self.net.worker_thread.join(timeout=0.5)
+        if hasattr(self.net, 'state_worker_thread') and self.net.state_worker_thread.is_alive():
+            self.net.state_worker_thread.join(timeout=0.5)
+        self.net.retry_queue = []
         main._global_api = None
         config_manager.APP_DATA_DIR = self.orig_app_data
         config_manager.CONFIG_FILE = self.orig_cfg_file
