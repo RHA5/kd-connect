@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-APP_VERSION = "v1.0.0"
+APP_VERSION = "v1.0.1"
 
 # Привязка приложения к Windows Taskbar для четкой иконки
 if sys.platform == 'win32':
